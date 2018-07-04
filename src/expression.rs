@@ -1,99 +1,85 @@
-/// All expression nodes implement the ExprNode trait, which takes an array of floats that contain
-/// the values of variables. For example, in the expression `2x + 3y`, `x` has the variable index
-/// of `0` and `y` has the variable index of `1`. To evaluate this expression with `x` equal to 3
-/// and `y` equal to -2, our `vars` variable would look like this: [3.0, -2.0].
-pub trait ExprNode {
-    fn evaluate(&self, vars: &[f64]) -> f64;
-}
-
 /// These are the supported binary operators.
-/// Addition: `+`
-/// Subtraction: `-`
-/// Multiplication: `*`
-/// Division: `/`
-/// Exponentiation: '^'
-#[allow(dead_code)]
 pub enum BinaryOperator {
+    /// Addition: `+`
     Addition,
+    /// Subtraction: `-`
     Subtraction,
+    /// Multiplication: `*`
     Multiplication,
+    /// Division: `/`
     Division,
+    /// Exponentiation: `^`
     Exponentiation,
 }
 
 /// These are the supported unary operators.
-/// Sin: `sin()`
-/// Cos: `cos()`
-/// Negation: `-`, as in `-4`
-#[allow(dead_code)]
 pub enum UnaryOperator {
+    /// Sin: `sin()`
     Sin,
+    /// Cos: `cos()`
     Cos,
+    /// Negation: `-`, as in `-4`
     Negation,
 }
 
-/// The binary expression node has a binary operator and a left and right node.
-#[allow(dead_code)]
-pub struct BinaryExprNode<T: ExprNode, U: ExprNode> {
-    pub operator: BinaryOperator,
-    pub left_node: T,
-    pub right_node: U,
+/// An expression node is any part of the parsed expression tree. These build up the expression
+/// recursively. Every value, variable, and operator is wrapped in an `ExpressionNode`.
+pub enum ExpressionNode {
+    /// This variant holds an operator that is to be applied to the evaluated values of its left
+    /// and right subtrees of the expression.
+    BinaryExprNode {
+        operator: BinaryOperator,
+        left_node: Box<ExpressionNode>,
+        right_node: Box<ExpressionNode>,
+    },
+    /// This variant holds an operator that is to be applied to the evaluated value of its child
+    /// subtree of the expression.
+    UnaryExprNode {
+        operator: UnaryOperator,
+        child_node: Box<ExpressionNode>,
+    },
+    /// This variant holds an index into the `vars` array which indicates which variable of the
+    /// expression it represents.
+    VariableExprNode { variable_index: usize },
+    /// This variant holds a constant value.
+    ConstantExprNode { value: f64 },
 }
 
-/// The unary expression node has a unary operator and a child node.
-#[allow(dead_code)]
-pub struct UnaryExprNode<T: ExprNode> {
-    pub operator: UnaryOperator,
-    pub child_node: T,
-}
-
-/// The constant expression node is just a wrapper around a constant value.
-#[allow(dead_code)]
-pub struct ConstantExprNode {
-    pub value: f64,
-}
-
-/// The variable expression node has an index representing the variable that the node represents.
-/// This value is used to index into the `vars` argument passed to the `evaluate` function.
-#[allow(dead_code)]
-pub struct VariableExprNode {
-    pub variable_index: usize,
-}
-
-impl<T: ExprNode, U: ExprNode> ExprNode for BinaryExprNode<T, U> {
+impl ExpressionNode {
+    /// Takes in an array of variables to recursively pass down to all `ExpressionNode`s until the
+    /// expression is evaluated. The `f64` value returned is the result of the expression tree
+    /// rooted at `self`.
     fn evaluate(&self, vars: &[f64]) -> f64 {
-        let left_value = self.left_node.evaluate(vars);
-        let right_value = self.right_node.evaluate(vars);
-        match self.operator {
-            BinaryOperator::Addition => left_value + right_value,
-            BinaryOperator::Subtraction => left_value - right_value,
-            BinaryOperator::Multiplication => left_value * right_value,
-            BinaryOperator::Division => left_value / right_value,
-            BinaryOperator::Exponentiation => left_value.powf(right_value),
+        match self {
+            ExpressionNode::BinaryExprNode {
+                operator,
+                left_node,
+                right_node,
+            } => {
+                let left_value = left_node.evaluate(&vars);
+                let right_value = right_node.evaluate(&vars);
+                match operator {
+                    BinaryOperator::Addition => left_value + right_value,
+                    BinaryOperator::Subtraction => left_value - right_value,
+                    BinaryOperator::Multiplication => left_value * right_value,
+                    BinaryOperator::Division => left_value / right_value,
+                    BinaryOperator::Exponentiation => left_value.powf(right_value),
+                }
+            }
+            ExpressionNode::UnaryExprNode {
+                operator,
+                child_node,
+            } => {
+                let child_value = child_node.evaluate(&vars);
+                match operator {
+                    UnaryOperator::Sin => child_value.sin(),
+                    UnaryOperator::Cos => child_value.cos(),
+                    UnaryOperator::Negation => -child_value,
+                }
+            }
+            ExpressionNode::VariableExprNode { variable_index } => vars[*variable_index],
+            ExpressionNode::ConstantExprNode { value } => *value,
         }
-    }
-}
-
-impl<T: ExprNode> ExprNode for UnaryExprNode<T> {
-    fn evaluate(&self, vars: &[f64]) -> f64 {
-        let child_value = self.child_node.evaluate(vars);
-        match self.operator {
-            UnaryOperator::Sin => child_value.sin(),
-            UnaryOperator::Cos => child_value.cos(),
-            UnaryOperator::Negation => -child_value,
-        }
-    }
-}
-
-impl ExprNode for ConstantExprNode {
-    fn evaluate(&self, _vars: &[f64]) -> f64 {
-        self.value
-    }
-}
-
-impl ExprNode for VariableExprNode {
-    fn evaluate(&self, vars: &[f64]) -> f64 {
-        vars[self.variable_index]
     }
 }
 
@@ -103,20 +89,19 @@ mod tests {
 
     #[test]
     fn complex_epression_evaluates_correctly() {
-        // This expression represents the equation
-        // 4*(sin(x) + 3)
-        let expr = BinaryExprNode {
+        let complex_expression = ExpressionNode::BinaryExprNode {
             operator: BinaryOperator::Multiplication,
-            left_node: ConstantExprNode { value: 4.0 },
-            right_node: BinaryExprNode {
+            left_node: Box::new(ExpressionNode::ConstantExprNode { value: 4.0 }),
+            right_node: Box::new(ExpressionNode::BinaryExprNode {
                 operator: BinaryOperator::Addition,
-                left_node: UnaryExprNode {
+                left_node: Box::new(ExpressionNode::UnaryExprNode {
                     operator: UnaryOperator::Sin,
-                    child_node: VariableExprNode { variable_index: 0 },
-                },
-                right_node: ConstantExprNode { value: 3.0 },
-            },
+                    child_node: Box::new(ExpressionNode::VariableExprNode { variable_index: 0 }),
+                }),
+                right_node: Box::new(ExpressionNode::ConstantExprNode { value: 3.0 }),
+            }),
         };
-        assert_eq!(expr.evaluate(&[0.0]), 12.0);
+
+        assert_eq!(complex_expression.evaluate(&[0.0]), 12.0);
     }
 }
