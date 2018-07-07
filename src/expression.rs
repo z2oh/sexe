@@ -1,4 +1,5 @@
 /// These are the supported binary operators.
+#[derive(Debug)]
 pub enum BinaryOperator {
     /// Addition: `+`
     Addition,
@@ -13,6 +14,7 @@ pub enum BinaryOperator {
 }
 
 /// These are the supported unary operators.
+#[derive(Debug)]
 pub enum UnaryOperator {
     /// Sin: `sin()`
     Sin,
@@ -24,6 +26,7 @@ pub enum UnaryOperator {
 
 /// An expression node is any part of the parsed expression tree. These build up the expression
 /// recursively. Every value, variable, and operator is wrapped in an `ExpressionNode`.
+#[derive(Debug)]
 pub enum ExpressionNode {
     /// This variant holds an operator that is to be applied to the evaluated values of its left
     /// and right subtrees of the expression.
