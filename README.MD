@@ -12,7 +12,7 @@ Rust and Cargo must be installed. I recommend using [rustup](https://rustup.rs/)
 
 ```
 git clone https://github.com/z2oh/sexe
-cd split_word
+cd sexe
 cargo build --release
 ```
 
