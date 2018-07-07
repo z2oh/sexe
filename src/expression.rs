@@ -52,7 +52,7 @@ impl ExpressionNode {
     /// Takes in an array of variables to recursively pass down to all `ExpressionNode`s until the
     /// expression is evaluated. The `f64` value returned is the result of the expression tree
     /// rooted at `self`.
-    fn evaluate(&self, vars: &[f64]) -> f64 {
+    pub fn evaluate(&self, vars: &[f64]) -> f64 {
         match self {
             ExpressionNode::BinaryExprNode {
                 operator,
