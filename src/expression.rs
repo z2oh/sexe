@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 /// These are the supported binary operators.
 #[derive(Debug)]
 pub enum BinaryOperator {
@@ -43,16 +45,16 @@ pub enum ExpressionNode {
     },
     /// This variant holds an index into the `vars` array which indicates which variable of the
     /// expression it represents.
-    VariableExprNode { variable_index: usize },
+    VariableExprNode { variable_key: String, },
     /// This variant holds a constant value.
-    ConstantExprNode { value: f64 },
+    ConstantExprNode { value: f64, },
 }
 
 impl ExpressionNode {
     /// Takes in an array of variables to recursively pass down to all `ExpressionNode`s until the
     /// expression is evaluated. The `f64` value returned is the result of the expression tree
     /// rooted at `self`.
-    pub fn evaluate(&self, vars: &[f64]) -> f64 {
+    pub fn evaluate(&self, vars: &HashMap<String, f64>) -> f64 {
         match self {
             ExpressionNode::BinaryExprNode {
                 operator,
@@ -80,7 +82,10 @@ impl ExpressionNode {
                     UnaryOperator::Negation => -child_value,
                 }
             }
-            ExpressionNode::VariableExprNode { variable_index } => vars[*variable_index],
+            ExpressionNode::VariableExprNode { variable_key } => {
+                // For now, if a variable is not found we default to 0.
+                *vars.get(variable_key).unwrap_or(&0.0)
+            },
             ExpressionNode::ConstantExprNode { value } => *value,
         }
     }
@@ -99,12 +104,15 @@ mod tests {
                 operator: BinaryOperator::Addition,
                 left_node: Box::new(ExpressionNode::UnaryExprNode {
                     operator: UnaryOperator::Sin,
-                    child_node: Box::new(ExpressionNode::VariableExprNode { variable_index: 0 }),
+                    child_node: Box::new(ExpressionNode::VariableExprNode { variable_key: "x".to_string(), }),
                 }),
                 right_node: Box::new(ExpressionNode::ConstantExprNode { value: 3.0 }),
             }),
         };
 
-        assert_eq!(complex_expression.evaluate(&[0.0]), 12.0);
+        let mut vars_map = HashMap::new();
+        vars_map.insert("x".to_string(), 0.0);
+
+        assert_eq!(complex_expression.evaluate(&vars_map), 12.0);
     }
 }
