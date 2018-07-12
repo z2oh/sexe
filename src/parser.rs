@@ -2,8 +2,27 @@ use expression::*;
 use nom;
 use nom::types::CompleteStr;
 
+// This is a custom implementation of nom::recognize_float that does not parse
+// the optional sign before the number, so that expressions like `x+3` parse
+// correctly and not as `x(+3)`.
+named!(recognize_float<CompleteStr, CompleteStr>,
+  recognize!(
+    tuple!(
+      alt!(
+        value!((), tuple!(nom::digit, opt!(pair!(char!('.'), opt!(nom::digit)))))
+      | value!((), tuple!(char!('.'), nom::digit))
+      ),
+      opt!(tuple!(
+        alt!(char!('e') | char!('E')),
+        nom::digit
+        )
+      )
+    )
+  )
+);
+
 named!(parse_double<CompleteStr, f64>,
-    flat_map!(call!(nom::recognize_float), parse_to!(f64))
+    flat_map!(recognize_float, parse_to!(f64))
 );
 
 named!(parse_constant<CompleteStr, ExpressionNode>,
@@ -56,7 +75,27 @@ named!(parse_parens<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_expr<CompleteStr, ExpressionNode>,
-    call!(parse_term)
+    do_parse!(
+        init: parse_term >>
+        res:  fold_many0!(
+            pair!(alt!(tag!("+") | tag!("-")), parse_expr),
+            init,
+            |acc, (op, val): (CompleteStr, ExpressionNode)| {
+                let operator = match op.as_bytes()[0] as char {
+                    '+' => BinaryOperator::Addition,
+                    '-' => BinaryOperator::Subtraction,
+                    // For now, default to Addition.
+                    _   => BinaryOperator::Addition,
+                };
+                ExpressionNode::BinaryExprNode {
+                    operator,
+                    left_node: Box::new(acc),
+                    right_node: Box::new(val),
+                }
+            }
+        ) >>
+        (res)
+    )
 );
 
 named!(parse_term<CompleteStr, ExpressionNode>,
@@ -108,5 +147,20 @@ fn test_parse_term() {
     assert_eq!(
         parse_expr(CompleteStr("3(x(3))")).unwrap().1.evaluate(&vars_map),
         90.0
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3+10")).unwrap().1.evaluate(&HashMap::new()),
+        13.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3-(2+1)")).unwrap().1.evaluate(&HashMap::new()),
+        0.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3-(2-1)")).unwrap().1.evaluate(&HashMap::new()),
+        2.0,
     );
 }
