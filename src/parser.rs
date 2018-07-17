@@ -74,11 +74,11 @@ named!(parse_parens<CompleteStr, ExpressionNode>,
     delimited!( char!('('), parse_expr, char!(')') )
 );
 
-named!(parse_expr<CompleteStr, ExpressionNode>,
+named!(parse_priority_0<CompleteStr, ExpressionNode>,
     do_parse!(
         init: parse_term >>
-        res:  fold_many0!(
-            pair!(alt!(tag!("+") | tag!("-")), parse_expr),
+        res: fold_many0!(
+            pair!(alt!(tag!("+") | tag!("-")), parse_term),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -95,6 +95,13 @@ named!(parse_expr<CompleteStr, ExpressionNode>,
             }
         ) >>
         (res)
+    )
+);
+
+named!(parse_expr<CompleteStr, ExpressionNode>,
+    alt_complete!(
+        parse_priority_0 |
+        parse_term
     )
 );
 
@@ -162,5 +169,20 @@ fn test_parse_term() {
     assert_eq!(
         parse_expr(CompleteStr("3-(2-1)")).unwrap().1.evaluate(&HashMap::new()),
         2.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3-(2-3+1)+(4-1+4)")).unwrap().1.evaluate(&HashMap::new()),
+        10.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3+2+2-8+1-3")).unwrap().1.evaluate(&HashMap::new()),
+        -3.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3-4-5-6")).unwrap().1.evaluate(&HashMap::new()),
+        -12.0,
     );
 }
