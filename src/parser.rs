@@ -42,7 +42,7 @@ named!(parse_variable<CompleteStr, ExpressionNode>,
 named!(parse_constant_coefficient<CompleteStr, ExpressionNode>,
     do_parse!(
         coefficient: parse_constant >>
-        term: parse_term >>
+        term: alt_complete!(parse_parens | parse_unary_sans_negation | parse_variable) >>
         (ExpressionNode::BinaryExprNode {
             operator: BinaryOperator::Multiplication,
             left_node: Box::new(coefficient),
@@ -54,7 +54,7 @@ named!(parse_constant_coefficient<CompleteStr, ExpressionNode>,
 named!(parse_variable_coefficient<CompleteStr, ExpressionNode>,
     do_parse!(
         coefficient: parse_variable >>
-        term: parse_term >>
+        term: alt_complete!(parse_parens | parse_unary_sans_negation | parse_constant) >>
         (ExpressionNode::BinaryExprNode {
             operator: BinaryOperator::Multiplication,
             left_node: Box::new(coefficient),
@@ -122,6 +122,58 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_negation<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("-") >>
+        term: parse_term >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Negation,
+            child_node: Box::new(term),
+        })
+    )
+);
+
+named!(parse_sin<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("sin") >>
+        term: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Sin,
+            child_node: Box::new(term),
+        })
+    )
+);
+
+named!(parse_cos<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("cos") >>
+        term: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Cos,
+            child_node: Box::new(term),
+        })
+    )
+);
+
+named!(parse_unary_sans_negation<CompleteStr, ExpressionNode>,
+    alt_complete!(
+        parse_sin |
+        parse_cos
+    )
+);
+
+named!(parse_unary_prefix<CompleteStr, ExpressionNode>,
+    alt_complete!(
+        parse_negation            |
+        parse_unary_sans_negation
+    )
+);
+
+named!(parse_unary<CompleteStr, ExpressionNode>,
+    // For now, we only support unary prefixes.
+    call!(parse_unary_prefix)
+);
+
 named!(parse_expr<CompleteStr, ExpressionNode>,
     alt_complete!(
         parse_priority_0 |
@@ -131,6 +183,7 @@ named!(parse_expr<CompleteStr, ExpressionNode>,
 
 named!(parse_term<CompleteStr, ExpressionNode>,
     alt_complete!(
+        parse_unary       |
         parse_coefficient |
         parse_parens      |
         parse_variable    |
@@ -218,5 +271,20 @@ fn test_parse_term() {
     assert_eq!(
         parse_expr(CompleteStr("2/2/(5-1)*3")).unwrap().1.evaluate(&HashMap::new()),
         0.75,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("-3*3")).unwrap().1.evaluate(&HashMap::new()),
+        -9.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3*-3")).unwrap().1.evaluate(&HashMap::new()),
+        -9.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("-x*sin(0)")).unwrap().1.evaluate(&vars_map),
+        0.0,
     );
 }
