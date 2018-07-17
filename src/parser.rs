@@ -74,11 +74,35 @@ named!(parse_parens<CompleteStr, ExpressionNode>,
     delimited!( char!('('), parse_expr, char!(')') )
 );
 
-named!(parse_priority_0<CompleteStr, ExpressionNode>,
+named!(parse_priority_1<CompleteStr, ExpressionNode>,
     do_parse!(
         init: parse_term >>
         res: fold_many0!(
-            pair!(alt!(tag!("+") | tag!("-")), parse_term),
+            pair!(alt!(tag!("*") | tag!("/")), parse_term),
+            init,
+            |acc, (op, val): (CompleteStr, ExpressionNode)| {
+                let operator = match op.as_bytes()[0] as char {
+                    '*' => BinaryOperator::Multiplication,
+                    '/' => BinaryOperator::Division,
+                    // For now, default to Multiplication.
+                    _   => BinaryOperator::Multiplication,
+                };
+                ExpressionNode::BinaryExprNode {
+                    operator,
+                    left_node: Box::new(acc),
+                    right_node: Box::new(val),
+                }
+            }
+        ) >>
+        (res)
+    )
+);
+
+named!(parse_priority_0<CompleteStr, ExpressionNode>,
+    do_parse!(
+        init: parse_priority_1 >>
+        res: fold_many0!(
+            pair!(alt!(tag!("+") | tag!("-")), parse_priority_1),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -184,5 +208,15 @@ fn test_parse_term() {
     assert_eq!(
         parse_expr(CompleteStr("3-4-5-6")).unwrap().1.evaluate(&HashMap::new()),
         -12.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("2*2/(5-1)+3")).unwrap().1.evaluate(&HashMap::new()),
+        4.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("2/2/(5-1)*3")).unwrap().1.evaluate(&HashMap::new()),
+        0.75,
     );
 }
