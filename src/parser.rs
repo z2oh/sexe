@@ -98,11 +98,30 @@ named!(parse_priority_1<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_unary_term_priority_0<CompleteStr, ExpressionNode>,
+    alt_complete!(
+        do_parse!(
+            op: tag!("-") >>
+            res: parse_priority_1 >>
+            ({
+                let operator = match op.as_bytes()[0] as char {
+                    _   => UnaryOperator::Negation,
+                };
+                ExpressionNode::UnaryExprNode {
+                    operator,
+                    child_node: Box::new(res),
+                }
+            })
+        ) |
+        parse_priority_1
+    )
+);
+
 named!(parse_priority_0<CompleteStr, ExpressionNode>,
     do_parse!(
-        init: parse_priority_1 >>
+        init: parse_unary_term_priority_0 >>
         res: fold_many0!(
-            pair!(alt!(tag!("+") | tag!("-")), parse_priority_1),
+            pair!(alt!(tag!("+") | tag!("-")), parse_unary_term_priority_0),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -286,5 +305,20 @@ fn test_parse_term() {
     assert_eq!(
         parse_expr(CompleteStr("-x*sin(0)")).unwrap().1.evaluate(&vars_map),
         0.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("(((2(4)))))")).unwrap().1.evaluate(&vars_map),
+        8.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("4*-2")).unwrap().1.evaluate(&vars_map),
+        -8.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("4+-2")).unwrap().1.evaluate(&vars_map),
+        2.0,
     );
 }
