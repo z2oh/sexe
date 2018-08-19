@@ -4,4 +4,6 @@ version = "0.1.0"
 authors = ["Jeremy Day <jadaytime@gmail.com>"]
 
 [dependencies]
-nom = "^4.0"
+nom     = "^4.0"
+termion = "^1.5"
+tui     = "^0.2"
