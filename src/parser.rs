@@ -39,34 +39,15 @@ named!(parse_variable<CompleteStr, ExpressionNode>,
     )
 );
 
-named!(parse_constant_coefficient<CompleteStr, ExpressionNode>,
-    do_parse!(
-        coefficient: parse_constant >>
-        term: alt_complete!(parse_parens | parse_unary_sans_negation | parse_variable) >>
-        (ExpressionNode::BinaryExprNode {
-            operator: BinaryOperator::Multiplication,
-            left_node: Box::new(coefficient),
-            right_node: Box::new(term),
-        })
-    )
-);
-
-named!(parse_variable_coefficient<CompleteStr, ExpressionNode>,
-    do_parse!(
-        coefficient: parse_variable >>
-        term: alt_complete!(parse_parens | parse_unary_sans_negation | parse_constant) >>
-        (ExpressionNode::BinaryExprNode {
-            operator: BinaryOperator::Multiplication,
-            left_node: Box::new(coefficient),
-            right_node: Box::new(term),
-        })
-    )
-);
-
 named!(parse_coefficient<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        parse_constant_coefficient |
-        parse_variable_coefficient
+    do_parse!(
+        coefficient: parse_priority_1 >>
+        res: parse_priority_1 >>
+        (ExpressionNode::BinaryExprNode {
+            operator: BinaryOperator::Multiplication,
+            left_node: Box::new(coefficient),
+            right_node: Box::new(res),
+        })
     )
 );
 
@@ -74,23 +55,58 @@ named!(parse_parens<CompleteStr, ExpressionNode>,
     delimited!( char!('('), parse_expr, char!(')') )
 );
 
+named!(parse_sin<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("sin") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Sin,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_cos<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("cos") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Cos,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(pub parse_expr<CompleteStr, ExpressionNode>,
+    call!(parse_priority_4)
+);
+
+named!(parse_priority_0<CompleteStr, ExpressionNode>,
+    alt_complete!(
+        parse_constant   |
+        parse_parens     |
+        parse_sin        |
+        parse_cos        |
+        parse_variable
+    )
+);
+
 named!(parse_priority_1<CompleteStr, ExpressionNode>,
     do_parse!(
-        init: parse_term >>
+        init: parse_priority_0 >>
         res: fold_many0!(
-            pair!(alt!(tag!("*") | tag!("/")), parse_term),
+            pair!(alt!(tag!("^")), parse_priority_0),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
-                    '*' => BinaryOperator::Multiplication,
-                    '/' => BinaryOperator::Division,
-                    // For now, default to Multiplication.
-                    _   => BinaryOperator::Multiplication,
+                    '^' => BinaryOperator::Exponentiation,
+                    // For now, default to Exponentiatino.
+                    _ => BinaryOperator::Exponentiation,
                 };
                 ExpressionNode::BinaryExprNode {
                     operator,
-                    left_node: Box::new(acc),
-                    right_node: Box::new(val),
+                    left_node: Box::new(val),
+                    right_node: Box::new(acc),
                 }
             }
         ) >>
@@ -98,30 +114,56 @@ named!(parse_priority_1<CompleteStr, ExpressionNode>,
     )
 );
 
-named!(parse_unary_term_priority_0<CompleteStr, ExpressionNode>,
+named!(parse_priority_2<CompleteStr, ExpressionNode>,
     alt_complete!(
         do_parse!(
-            op: tag!("-") >>
-            res: parse_priority_1 >>
-            ({
-                let operator = match op.as_bytes()[0] as char {
-                    _   => UnaryOperator::Negation,
-                };
-                ExpressionNode::UnaryExprNode {
-                    operator,
-                    child_node: Box::new(res),
+            init: parse_priority_1 >>
+            res: fold_many0!(
+                pair!(alt!(tag!("*") | tag!("/")), parse_priority_1),
+                init,
+                |acc, (op, val): (CompleteStr, ExpressionNode)| {
+                    let operator = match op.as_bytes()[0] as char {
+                        '*' => BinaryOperator::Multiplication,
+                        '/' => BinaryOperator::Division,
+                        // For now, default to Multiplication.
+                        _   => BinaryOperator::Multiplication,
+                    };
+                    ExpressionNode::BinaryExprNode {
+                        operator,
+                        left_node: Box::new(acc),
+                        right_node: Box::new(val),
+                    }
                 }
-            })
+            ) >>
+            (res)
         ) |
-        parse_priority_1
+        parse_coefficient
     )
 );
 
-named!(parse_priority_0<CompleteStr, ExpressionNode>,
+named!(parse_priority_3<CompleteStr, ExpressionNode>,
+    alt_complete!(
+        do_parse!(
+            op: alt!(tag!("-")) >>
+            res: parse_priority_2 >>
+            (ExpressionNode::UnaryExprNode {
+                operator: match op.as_bytes()[0] as char {
+                    '-' => UnaryOperator::Negation,
+                    // For now, default to Negation.
+                    _ => UnaryOperator::Negation,
+                },
+                child_node: Box::new(res),
+            })
+        ) |
+        parse_priority_2
+    )
+);
+
+named!(parse_priority_4<CompleteStr, ExpressionNode>,
     do_parse!(
-        init: parse_unary_term_priority_0 >>
+        init: parse_priority_3 >>
         res: fold_many0!(
-            pair!(alt!(tag!("+") | tag!("-")), parse_unary_term_priority_0),
+            pair!(alt!(tag!("+") | tag!("-")), parse_priority_3),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -141,76 +183,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
     )
 );
 
-named!(parse_negation<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("-") >>
-        term: parse_term >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Negation,
-            child_node: Box::new(term),
-        })
-    )
-);
 
-named!(parse_sin<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("sin") >>
-        term: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Sin,
-            child_node: Box::new(term),
-        })
-    )
-);
-
-named!(parse_cos<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("cos") >>
-        term: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Cos,
-            child_node: Box::new(term),
-        })
-    )
-);
-
-named!(parse_unary_sans_negation<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        parse_sin |
-        parse_cos
-    )
-);
-
-named!(parse_unary_prefix<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        parse_negation            |
-        parse_unary_sans_negation
-    )
-);
-
-named!(parse_unary<CompleteStr, ExpressionNode>,
-    // For now, we only support unary prefixes.
-    call!(parse_unary_prefix)
-);
-
-named!(parse_expr<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        parse_priority_0 |
-        parse_term
-    )
-);
-
-named!(parse_term<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        parse_unary       |
-        parse_coefficient |
-        parse_parens      |
-        parse_variable    |
-        parse_constant
-    )
-);
-
-use std::collections::HashMap;
 #[test]
 fn test_parse_constant() {
     use std::collections::HashMap;
