@@ -50,43 +50,50 @@ pub enum ExpressionNode {
     ConstantExprNode { value: f64, },
 }
 
+#[derive(Debug)]
+pub enum EvaluationError {
+    VariableNotFoundError,
+}
+
 impl ExpressionNode {
     /// Takes in an array of variables to recursively pass down to all `ExpressionNode`s until the
     /// expression is evaluated. The `f64` value returned is the result of the expression tree
     /// rooted at `self`.
-    pub fn evaluate(&self, vars: &HashMap<String, f64>) -> f64 {
+    pub fn evaluate(&self, vars: &HashMap<String, f64>) -> Result<f64, EvaluationError> {
         match self {
             ExpressionNode::BinaryExprNode {
                 operator,
                 left_node,
                 right_node,
             } => {
-                let left_value = left_node.evaluate(&vars);
-                let right_value = right_node.evaluate(&vars);
+                let left_value = left_node.evaluate(&vars)?;
+                let right_value = right_node.evaluate(&vars)?;
                 match operator {
-                    BinaryOperator::Addition => left_value + right_value,
-                    BinaryOperator::Subtraction => left_value - right_value,
-                    BinaryOperator::Multiplication => left_value * right_value,
-                    BinaryOperator::Division => left_value / right_value,
-                    BinaryOperator::Exponentiation => left_value.powf(right_value),
+                    BinaryOperator::Addition => Ok(left_value + right_value),
+                    BinaryOperator::Subtraction => Ok(left_value - right_value),
+                    BinaryOperator::Multiplication => Ok(left_value * right_value),
+                    BinaryOperator::Division => Ok(left_value / right_value),
+                    BinaryOperator::Exponentiation => Ok(left_value.powf(right_value)),
                 }
-            }
+            },
             ExpressionNode::UnaryExprNode {
                 operator,
                 child_node,
             } => {
-                let child_value = child_node.evaluate(&vars);
+                let child_value = child_node.evaluate(&vars)?;
                 match operator {
-                    UnaryOperator::Sin => child_value.sin(),
-                    UnaryOperator::Cos => child_value.cos(),
-                    UnaryOperator::Negation => -child_value,
+                    UnaryOperator::Sin => Ok(child_value.sin()),
+                    UnaryOperator::Cos => Ok(child_value.cos()),
+                    UnaryOperator::Negation => Ok(-child_value),
                 }
-            }
-            ExpressionNode::VariableExprNode { variable_key } => {
-                // For now, if a variable is not found we default to 0.
-                *vars.get(variable_key).unwrap_or(&0.0)
             },
-            ExpressionNode::ConstantExprNode { value } => *value,
+            ExpressionNode::VariableExprNode { variable_key } => {
+                match vars.get(variable_key) {
+                    Some(x) => Ok(*x),
+                    None => Err(EvaluationError::VariableNotFoundError),
+                }
+            },
+            ExpressionNode::ConstantExprNode { value } => Ok(*value),
         }
     }
 }
@@ -113,6 +120,6 @@ mod tests {
         let mut vars_map = HashMap::new();
         vars_map.insert("x".to_string(), 0.0);
 
-        assert_eq!(complex_expression.evaluate(&vars_map), 12.0);
+        assert_eq!(complex_expression.evaluate(&vars_map).unwrap(), 12.0);
     }
 }
