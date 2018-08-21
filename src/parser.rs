@@ -105,8 +105,8 @@ named!(parse_priority_1<CompleteStr, ExpressionNode>,
                 };
                 ExpressionNode::BinaryExprNode {
                     operator,
-                    left_node: Box::new(val),
-                    right_node: Box::new(acc),
+                    left_node: Box::new(acc),
+                    right_node: Box::new(val),
                 }
             }
         ) >>
@@ -115,29 +115,29 @@ named!(parse_priority_1<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_priority_2<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        do_parse!(
-            init: parse_priority_1 >>
-            res: fold_many0!(
-                pair!(alt!(tag!("*") | tag!("/")), parse_priority_1),
-                init,
-                |acc, (op, val): (CompleteStr, ExpressionNode)| {
-                    let operator = match op.as_bytes()[0] as char {
-                        '*' => BinaryOperator::Multiplication,
-                        '/' => BinaryOperator::Division,
-                        // For now, default to Multiplication.
-                        _   => BinaryOperator::Multiplication,
-                    };
-                    ExpressionNode::BinaryExprNode {
-                        operator,
-                        left_node: Box::new(acc),
-                        right_node: Box::new(val),
-                    }
+    do_parse!(
+        init: alt!(
+            parse_coefficient |
+            parse_priority_1
+        ) >>
+        res: fold_many0!(
+            pair!(alt!(tag!("*") | tag!("/")), parse_priority_1),
+            init,
+            |acc, (op, val): (CompleteStr, ExpressionNode)| {
+                let operator = match op.as_bytes()[0] as char {
+                    '*' => BinaryOperator::Multiplication,
+                    '/' => BinaryOperator::Division,
+                    // For now, default to Multiplication.
+                    _   => BinaryOperator::Multiplication,
+                };
+                ExpressionNode::BinaryExprNode {
+                    operator,
+                    left_node: Box::new(acc),
+                    right_node: Box::new(val),
                 }
-            ) >>
-            (res)
-        ) |
-        parse_coefficient
+            }
+        ) >>
+        (res)
     )
 );
 
@@ -273,7 +273,7 @@ fn test_parse_term() {
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3*-3")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3*(-3)")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
         -9.0,
     );
 
@@ -288,12 +288,17 @@ fn test_parse_term() {
     );
 
     assert_eq!(
-        format!("{:?}", parse_expr(CompleteStr("3^-3")).unwrap().1),
-        "",
+        parse_expr(CompleteStr("2^3")).unwrap().1.evaluate(&vars_map).unwrap(),
+        8.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3^-3")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("3^2")).unwrap().1.evaluate(&vars_map).unwrap(),
+        9.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("3^(-3)")).unwrap().1.evaluate(&vars_map).unwrap(),
         1.0/27.0,
     );
 
@@ -308,22 +313,7 @@ fn test_parse_term() {
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("4*-2")).unwrap().1.evaluate(&vars_map).unwrap(),
-        -8.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("4+-2")).unwrap().1.evaluate(&vars_map).unwrap(),
-        2.0,
-    );
-
-    assert_eq!(
         parse_expr(CompleteStr("(-2)^4")).unwrap().1.evaluate(&vars_map).unwrap(),
         16.0,
     );
-
-    //assert_eq!(
-        //parse_expr(CompleteStr("-2^4^-2")).unwrap().1.evaluate(&vars_map).unwrap(),
-    // -1.0442737824274138,
-    //);
 }
