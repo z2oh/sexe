@@ -6,4 +6,7 @@ authors = ["Jeremy Day <jadaytime@gmail.com>"]
 [dependencies]
 nom     = "^4.0"
 termion = "^1.5"
-tui     = "^0.2"
+
+[dependencies.tui]
+git = "https://github.com/z2oh/tui-rs/"
+rex = "d5408ae193f948bdf1e7f981e697c0b33011ebfc"

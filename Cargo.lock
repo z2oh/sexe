@@ -74,7 +74,7 @@ version = "0.1.0"
 dependencies = [
  "nom 4.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "termion 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "tui 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tui 0.2.3 (git+https://github.com/z2oh/tui-rs/)",
 ]
 
 [[package]]
@@ -90,7 +90,7 @@ dependencies = [
 [[package]]
 name = "tui"
 version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/z2oh/tui-rs/#d5408ae193f948bdf1e7f981e697c0b33011ebfc"
 dependencies = [
  "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cassowary 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -124,6 +124,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum redox_syscall 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)" = "c214e91d3ecf43e9a4e41e578973adeb14b474f2bee858742d127af75a0112b1"
 "checksum redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7e891cfe48e9100a70a3b6eb652fef28920c117d366339687bd5576160db0f76"
 "checksum termion 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "689a3bdfaab439fd92bc87df5c4c78417d3cbe537487274e9b0b2dce76e92096"
-"checksum tui 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "19c126c95f5c5320a77a477818e20e910ab708ea7a408c98ec03bd2754510029"
+"checksum tui 0.2.3 (git+https://github.com/z2oh/tui-rs/)" = "<none>"
 "checksum unicode-segmentation 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aa6024fc12ddfd1c6dbc14a80fa2324d4568849869b779f6bd37e5e4c03344d1"
 "checksum unicode-width 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "882386231c45df4700b275c7ff55b6f3698780a650026380e72dabe76fa46526"

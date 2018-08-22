@@ -214,7 +214,6 @@ impl Application {
                                 format!("{:.2}", self.end_y).as_str(),
                         ]))
                     .datasets(&[Dataset::default()
-                                .name("data")
                                 .marker(Marker::Braille)
                                 .style(Style::default().fg(Color::Magenta))
                                 .data(&self.evaluation)])
