@@ -4,7 +4,6 @@ use nom::types::CompleteStr;
 
 use termion::event;
 use termion::input::TermRead;
-use termion::cursor;
 
 use tui::backend::MouseBackend;
 use tui::layout::{Direction, Group, Rect, Size};
@@ -16,11 +15,6 @@ use std::collections::HashMap;
 
 use parser;
 
-enum InputMode {
-    Normal,
-    Insert,
-}
-
 enum SelectedBox {
     Function,
     StartX,
@@ -28,19 +22,150 @@ enum SelectedBox {
 }
 
 struct Application {
-    mode: InputMode,
-    function_string: String,
     selected_box: SelectedBox,
-    start_x_string: String,
-    end_x_string: String,
-    start_x: f64,
-    end_x: f64,
     start_y: f64,
     end_y: f64,
     evaluation: Vec<(f64, f64)>,
+    resolution: u32,
+    function_input: TextInput,
+    start_x_input: NumberInput,
+    end_x_input: NumberInput,
+}
+
+struct TextInput {
+    string: String,
+}
+
+struct NumberInput {
+    display_string: String,
+    number_value: f64,
+}
+
+trait Input {
+    fn process_input(&mut self, key: &event::Key);
+}
+
+impl Input for NumberInput {
+    fn process_input(&mut self, key: &event::Key) {
+        match key {
+            event::Key::Backspace => {
+                // Reset to placeholder if our string is too short.
+                if self.display_string.len() <= 2 {
+                    self.display_string = String::from("+0");
+                }
+                else {
+                    self.display_string.pop();
+                }
+            },
+            event::Key::Char(digit) if digit.is_ascii_digit() => {
+                if &self.display_string == "+0" || &self.display_string == "-0" {
+                    self.display_string.pop();
+                }
+                self.display_string.push(*digit);
+            },
+            event::Key::Char('+') => {
+                self.display_string.replace_range(..1, "+");
+            },
+            event::Key::Char('-') => {
+                self.display_string.replace_range(..1, "-");
+            },
+            _ => (),
+        };
+        self.number_value = self.display_string.parse().unwrap();
+    }
+}
+
+impl Input for TextInput {
+    fn process_input(&mut self, key: &event::Key) {
+        match key {
+            event::Key::Backspace => {
+                self.string.pop();
+            },
+            event::Key::Char(c) => {
+                self.string.push(*c);
+            },
+            _ => (),
+        };
+    }
+}
+
+enum ApplicationOperation {
+    Exit,
+    Noop,
+}
+
+fn determine_y_bounds(vec: &Vec<(f64, f64)>) -> (f64, f64) {
+    let mut current_min = 0.0;
+    let mut current_max = 0.0;
+    for (_, y) in vec {
+        current_min = if *y < current_min { *y } else { current_min };
+        current_max = if *y > current_max { *y } else { current_max };
+    }
+    (current_min, current_max)
+}
+
+enum Error {
+    ParseError,
+    RangeError,
+}
+
+fn evaluate_function_over_domain(start_x: f64, end_x: f64, resolution: u32, function_string: &str) -> Result<Vec<(f64, f64)>, Error> {
+    let mut vars_map = HashMap::new();
+    vars_map.insert("x".to_string(), start_x);
+
+    let func = match parser::parse_expr(CompleteStr(function_string)) {
+        Ok((rem, func)) => {
+            if rem.len() > 0 {
+                return Err(Error::ParseError);
+            }
+            func
+        },
+        Err(_) => {
+            return Err(Error::ParseError);
+        },
+    };
+
+    let step_width = (end_x - start_x) / resolution as f64;
+
+    Ok((0..resolution).map(|x| start_x + (x as f64 * step_width)).filter_map(|x| {
+        if let Some(val) = vars_map.get_mut(&"x".to_string()) {
+            *val = x;
+        }
+        match func.evaluate(&vars_map) {
+            Ok(y) => Some((x, y)),
+            Err(_) => None,
+        }
+    }).collect())
 }
 
 impl Application {
+    fn process_input(&mut self, key: &event::Key) -> ApplicationOperation {
+        match key {
+            // A Ctrl-C produces an exit command for the application.
+            event::Key::Ctrl('c') => return ApplicationOperation::Exit,
+            // Left and right change the focused box.
+            event::Key::Left => {
+                self.selected_box = match self.selected_box {
+                    SelectedBox::EndX => SelectedBox::StartX,
+                    _ => SelectedBox::Function,
+                };
+            },
+            event::Key::Right => {
+                self.selected_box = match self.selected_box {
+                    SelectedBox::Function => SelectedBox::StartX,
+                    _ => SelectedBox::EndX,
+                };
+            },
+            // Otherwire we hand off input to the children.
+            _ => match self.selected_box {
+                SelectedBox::Function => self.function_input.process_input(&key),
+                SelectedBox::StartX => self.start_x_input.process_input(&key),
+                SelectedBox::EndX => self.end_x_input.process_input(&key),
+            },
+        };
+        ApplicationOperation::Noop
+    }
+
     fn draw(&self, t: &mut Terminal<MouseBackend>, size: &Rect) {
         Group::default()
             .direction(Direction::Vertical)
@@ -55,30 +180,30 @@ impl Application {
                             .block(Block::default().title("Function").borders(Borders::ALL))
                             .style(Style::default())
                             .wrap(false)
-                            .text(&self.function_string)
+                            .text(&self.function_input.string)
                             .render(t, &chunks[0]);
                         Paragraph::default()
                             .block(Block::default().title("Start X").borders(Borders::ALL))
                             .style(Style::default())
                             .wrap(false)
-                            .text(&self.start_x_string)
+                            .text(&self.start_x_input.display_string)
                             .render(t, &chunks[1]);
                         Paragraph::default()
                             .block(Block::default().title("End X").borders(Borders::ALL))
                             .style(Style::default())
                             .wrap(false)
-                            .text(&self.end_x_string)
+                            .text(&self.end_x_input.display_string)
                             .render(t, &chunks[2]);
                     });
                 Chart::default()
                     .block(Block::default().title("Plot").borders(Borders::ALL))
                     .x_axis(Axis::default()
                         .title("X")
-                        .bounds([self.start_x, self.end_x])
+                        .bounds([self.start_x_input.number_value, self.end_x_input.number_value])
                         .labels(&[
-                                format!("{:.2}", self.start_x).as_str(),
+                                format!("{:.2}", self.start_x_input.number_value).as_str(),
                                 "0",
-                                format!("{:.2}", self.end_x).as_str(),
+                                format!("{:.2}", self.end_x_input.number_value).as_str(),
                         ]))
                     .y_axis(Axis::default()
                         .title("Y")
@@ -106,6 +231,7 @@ impl Application {
         terminal.hide_cursor().unwrap();
 
         let mut term_size = terminal.size().unwrap();
+
         self.draw(&mut terminal, &term_size);
 
         for c in stdin.keys() {
@@ -115,145 +241,61 @@ impl Application {
                 term_size = size;
             }
             let evt = c.unwrap();
-            match evt {
-                event::Key::Ctrl('c') => break,
-                event::Key::Backspace => {
-                    match self.selected_box {
-                        SelectedBox::Function => {
-                            self.function_string.pop();
-                        },
-                        SelectedBox::StartX => {
-                            self.start_x_string.pop();
-                            self.start_x = match self.start_x_string.parse() {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    self.start_x_string = String::from("0");
-                                    0.0
-                                },
-                            };
-                        },
-                        SelectedBox::EndX => {
-                            self.end_x_string.pop();
-                            self.end_x = match self.end_x_string.parse() {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    self.end_x_string = String::from("0");
-                                    0.0
-                                },
-                            };
-                        },
-                    };
-                },
-                event::Key::Left => {
-                    self.selected_box = match self.selected_box {
-                        SelectedBox::EndX => SelectedBox::StartX,
-                        _ => SelectedBox::Function,
-                    };
-                },
-                event::Key::Right => {
-                    self.selected_box = match self.selected_box {
-                        SelectedBox::Function => SelectedBox::StartX,
-                        _ => SelectedBox::EndX,
-                    };
-                },
-                event::Key::Char(a) => { 
-                    match self.selected_box {
-                        SelectedBox::Function => {
-                            self.function_string.push(a);
-                        },
-                        SelectedBox::StartX => {
-                            if self.start_x_string.len() == 1 && self.start_x_string.starts_with("0") {
-                                self.start_x_string.pop();
-                            }
-                            self.start_x_string.push(a);
-                            self.start_x = match self.start_x_string.parse() {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    self.start_x_string = String::from("0");
-                                    0.0
-                                },
-                            };
-                        },
-                        SelectedBox::EndX => {
-                            if self.end_x_string.len() == 1 && self.end_x_string.starts_with("0") {
-                                self.end_x_string.pop();
-                            }
-                            self.end_x_string.push(a);
-                            self.end_x = match self.end_x_string.parse() {
-                                Ok(val) => val,
-                                Err(_) => {
-                                    self.end_x_string = String::from("0");
-                                    0.0
-                                },
-                            };
-                        },
-                    };
-                },
-                _ => continue,
+
+            match self.process_input(&evt) {
+                ApplicationOperation::Exit => break,
+                ApplicationOperation::Noop => (),
             };
-            self.evaluation = self.determine_evaluation(100);
-            let (start_y, end_y) = self.determine_y_bounds();
-            self.start_y = start_y;
-            self.end_y = end_y;
+
+            // TODO: Handle plotting errors and display error messages.
+            match self.plot_function() {
+                Ok(vec) => {
+                    self.evaluation = vec;
+                    let (start_y, end_y) = determine_y_bounds(&self.evaluation);
+                    self.start_y = start_y;
+                    self.end_y = end_y;
+                },
+                Err(_) => {
+                    self.evaluation = Vec::new();
+                    self.start_y = 0.0;
+                    self.end_y = 0.0;
+                },
+            }
+
             self.draw(&mut terminal, &term_size);
         }
         terminal.clear().unwrap();
         terminal.show_cursor().unwrap();
     }
 
-    fn determine_y_bounds(&self) -> (f64, f64) {
-        let mut current_min = 0.0;
-        let mut current_max = 0.0;
-        for (x, y) in &self.evaluation {
-            current_min = if *y < current_min { *y } else { current_min };
-            current_max = if *y > current_max { *y } else { current_max };
+    fn plot_function(&mut self) -> Result<Vec<(f64, f64)>, Error> {
+        if self.start_x_input.number_value >= self.end_x_input.number_value {
+            Err(Error::RangeError)
         }
-        (current_min, current_max)
-    }
-
-    fn determine_evaluation(&self, resolution: u32) -> Vec<(f64, f64)> {
-        if self.start_x >= self.end_x {
-            return Vec::new();
+        else {
+            evaluate_function_over_domain(self.start_x_input.number_value, self.end_x_input.number_value, self.resolution, &self.function_input.string)
         }
-        let mut vars_map = HashMap::new();
-        vars_map.insert("x".to_string(), self.start_x);
-        let func = match parser::parse_expr(CompleteStr(&self.function_string)) {
-            Ok((rem, func)) => {
-                if rem.len() > 0 {
-                    return Vec::new();
-                }
-                func
-            },
-            Err(_) => {
-                return Vec::new();
-            },
-        };
-        let step_width = (self.end_x - self.start_x) / resolution as f64;
-
-        (0..resolution).map(|x| self.start_x + (x as f64 * step_width)).filter_map(|x| {
-            if let Some(val) = vars_map.get_mut(&"x".to_string()) {
-                *val = x;
-            }
-            match func.evaluate(&vars_map) {
-                Ok(y) => Some((x, y)),
-                Err(e) => None,
-            }
-        }).collect()
     }
 }
 
 pub fn display() {
     let mut application = Application {
-        mode: InputMode::Normal,
-        function_string: String::from("sin(x)"),
         selected_box: SelectedBox::Function,
-        start_x_string: String::from("0"),
-        end_x_string: String::from("0"),
-        start_x: 0.0,
-        end_x: 0.0,
         start_y: 0.0,
         end_y: 0.0,
         evaluation: Vec::new(),
+        function_input: TextInput {
+            string: String::from("sin(x)"),
+        },
+        start_x_input: NumberInput {
+            display_string: String::from("+0"),
+            number_value: 0.0,
+        },
+        end_x_input: NumberInput {
+            display_string: String::from("+0"),
+            number_value: 0.0,
+        },
+        resolution: 100,
     };
     application.start();
 }
