@@ -5,8 +5,6 @@ extern crate tui;
 
 use std::io;
 
-use nom::types::CompleteStr;
-
 mod expression;
 mod parser;
 mod interface;
