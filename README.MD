@@ -9,7 +9,7 @@ There are three components to this project:
 * A parser to parse human written expressions into an expression model that can be evaluated ([src/parser.rs](src/parser.rs))
 * A graphing interface for the terminal, to graph functions across some domain ([src/interface.rs](src/interface.rs))
 
-Currently, only a limited set of operators are implemented: addition, subtraction, multiplication, division, negation, sin, and cosin. More will be coming after other features are stabilized.
+Currently, only a limited set of operators are implemented: addition, subtraction, multiplication, division, negation, sin, cosin, and tan. More will be coming after other features are stabilized.
 
 ## Installation
 Rust and Cargo must be installed. I recommend using [rustup](https://rustup.rs/).

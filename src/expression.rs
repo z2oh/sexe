@@ -22,6 +22,8 @@ pub enum UnaryOperator {
     Sin,
     /// Cos: `cos()`
     Cos,
+    /// Tan: `tan()`
+    Tan,
     /// Negation: `-`, as in `-4`
     Negation,
 }
@@ -84,6 +86,7 @@ impl ExpressionNode {
                 match operator {
                     UnaryOperator::Sin => Ok(child_value.sin()),
                     UnaryOperator::Cos => Ok(child_value.cos()),
+                    UnaryOperator::Tan => Ok(child_value.tan()),
                     UnaryOperator::Negation => Ok(-child_value),
                 }
             },

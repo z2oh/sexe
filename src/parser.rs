@@ -77,6 +77,17 @@ named!(parse_cos<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_tan<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("tan") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Tan,
+            child_node: Box::new(res),
+        })
+    )
+);
+
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
@@ -87,6 +98,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_parens     |
         parse_sin        |
         parse_cos        |
+        parse_tan        |
         parse_variable
     )
 );
