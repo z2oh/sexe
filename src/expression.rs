@@ -24,6 +24,8 @@ pub enum UnaryOperator {
     Cos,
     /// Tan: `tan()`
     Tan,
+    /// Abs: `abs()`
+    Abs,
     /// Negation: `-`, as in `-4`
     Negation,
 }
@@ -47,9 +49,9 @@ pub enum ExpressionNode {
     },
     /// This variant holds an index into the `vars` array which indicates which variable of the
     /// expression it represents.
-    VariableExprNode { variable_key: String, },
+    VariableExprNode { variable_key: String },
     /// This variant holds a constant value.
-    ConstantExprNode { value: f64, },
+    ConstantExprNode { value: f64 },
 }
 
 #[derive(Debug)]
@@ -77,7 +79,7 @@ impl ExpressionNode {
                     BinaryOperator::Division => Ok(left_value / right_value),
                     BinaryOperator::Exponentiation => Ok(left_value.powf(right_value)),
                 }
-            },
+            }
             ExpressionNode::UnaryExprNode {
                 operator,
                 child_node,
@@ -88,13 +90,12 @@ impl ExpressionNode {
                     UnaryOperator::Cos => Ok(child_value.cos()),
                     UnaryOperator::Tan => Ok(child_value.tan()),
                     UnaryOperator::Negation => Ok(-child_value),
+                    UnaryOperator::Abs => Ok(child_value.abs()),
                 }
-            },
-            ExpressionNode::VariableExprNode { variable_key } => {
-                match vars.get(variable_key) {
-                    Some(x) => Ok(*x),
-                    None => Err(EvaluationError::VariableNotFoundError),
-                }
+            }
+            ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {
+                Some(x) => Ok(*x),
+                None => Err(EvaluationError::VariableNotFoundError),
             },
             ExpressionNode::ConstantExprNode { value } => Ok(*value),
         }
@@ -114,7 +115,9 @@ mod tests {
                 operator: BinaryOperator::Addition,
                 left_node: Box::new(ExpressionNode::UnaryExprNode {
                     operator: UnaryOperator::Sin,
-                    child_node: Box::new(ExpressionNode::VariableExprNode { variable_key: "x".to_string(), }),
+                    child_node: Box::new(ExpressionNode::VariableExprNode {
+                        variable_key: "x".to_string(),
+                    }),
                 }),
                 right_node: Box::new(ExpressionNode::ConstantExprNode { value: 3.0 }),
             }),

@@ -88,6 +88,17 @@ named!(parse_tan<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_abs<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("abs") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Abs,
+            child_node: Box::new(res),
+        })
+    )
+);
+
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
@@ -99,6 +110,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_sin        |
         parse_cos        |
         parse_tan        |
+        parse_abs        |
         parse_variable
     )
 );
@@ -195,12 +207,15 @@ named!(parse_priority_4<CompleteStr, ExpressionNode>,
     )
 );
 
-
 #[test]
 fn test_parse_constant() {
     use std::collections::HashMap;
     assert_eq!(
-        parse_constant(CompleteStr("3")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_constant(CompleteStr("3"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         3.0
     );
 
@@ -208,7 +223,11 @@ fn test_parse_constant() {
     vars_map.insert("x".to_string(), 10.0);
 
     assert_eq!(
-        parse_variable(CompleteStr("x")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_variable(CompleteStr("x"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         10.0
     );
 }
@@ -220,112 +239,200 @@ fn test_parse_term() {
     vars_map.insert("x".to_string(), 10.0);
 
     assert_eq!(
-        parse_expr(CompleteStr("(3(3))")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("(3(3))"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         9.0
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3x")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("3x"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         30.0
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3(3(3))")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3(3(3))"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         27.0
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3(x(3))")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("3(x(3))"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         90.0
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3+10")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3+10"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         13.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3-(2+1)")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3-(2+1)"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         0.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3-(2-1)")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3-(2-1)"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         2.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3-(2-3+1)+(4-1+4)")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3-(2-3+1)+(4-1+4)"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         10.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3+2+2-8+1-3")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3+2+2-8+1-3"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         -3.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3-4-5-6")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3-4-5-6"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         -12.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("2*2/(5-1)+3")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("2*2/(5-1)+3"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         4.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("2/2/(5-1)*3")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("2/2/(5-1)*3"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         0.75,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("-4*4")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("-4*4"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         -16.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3*(-3)")).unwrap().1.evaluate(&HashMap::new()).unwrap(),
+        parse_expr(CompleteStr("3*(-3)"))
+            .unwrap()
+            .1
+            .evaluate(&HashMap::new())
+            .unwrap(),
         -9.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("-x*sin(0)")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("-x*sin(0)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         0.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3^3")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("3^3"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         27.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("2^3")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("2^3"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         8.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3^2")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("3^2"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         9.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("3^(-3)")).unwrap().1.evaluate(&vars_map).unwrap(),
-        1.0/27.0,
+        parse_expr(CompleteStr("3^(-3)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        1.0 / 27.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("(((2(4)))))")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("(((2(4)))))"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         8.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("-2^4")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("-2^4"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         -16.0,
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("(-2)^4")).unwrap().1.evaluate(&vars_map).unwrap(),
+        parse_expr(CompleteStr("(-2)^4"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
         16.0,
     );
 }
