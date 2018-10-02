@@ -26,6 +26,8 @@ pub enum UnaryOperator {
     Tan,
     /// Abs: `abs()`
     Abs,
+    /// Exp: `exp()`
+    Exp,
     /// Negation: `-`, as in `-4`
     Negation,
 }
@@ -91,6 +93,7 @@ impl ExpressionNode {
                     UnaryOperator::Tan => Ok(child_value.tan()),
                     UnaryOperator::Negation => Ok(-child_value),
                     UnaryOperator::Abs => Ok(child_value.abs()),
+                    UnaryOperator::Exp => Ok(child_value.exp()),
                 }
             }
             ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {

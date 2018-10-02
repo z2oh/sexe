@@ -99,6 +99,17 @@ named!(parse_abs<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_exp<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("exp") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Exp,
+            child_node: Box::new(res),
+        })
+    )
+);
+
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
@@ -111,6 +122,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_cos        |
         parse_tan        |
         parse_abs        |
+        parse_exp        |
         parse_variable
     )
 );
@@ -435,4 +447,13 @@ fn test_parse_term() {
             .unwrap(),
         16.0,
     );
+
+    assert_eq!(
+        parse_expr(CompleteStr("exp(0)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        1.0,
+    )
 }
