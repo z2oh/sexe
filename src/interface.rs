@@ -170,7 +170,7 @@ impl Application {
         Group::default()
             .direction(Direction::Vertical)
             .margin(1)
-            .sizes(&[Size::Percent(10), Size::Percent(90)])
+            .sizes(&[Size::Min(3), Size::Percent(97)])
             .render(t, size, |t, chunks| {
                 Group::default()
                     .direction(Direction::Horizontal)
