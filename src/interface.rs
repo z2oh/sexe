@@ -156,7 +156,7 @@ impl Application {
                     _ => SelectedBox::EndX,
                 };
             },
-            // Otherwire we hand off input to the children.
+            // Otherwise we hand off input to the children.
             _ => match self.selected_box {
                 SelectedBox::Function => self.function_input.process_input(&key),
                 SelectedBox::StartX => self.start_x_input.process_input(&key),
@@ -291,8 +291,8 @@ pub fn display() {
             number_value: 0.0,
         },
         end_x_input: NumberInput {
-            display_string: String::from("+0"),
-            number_value: 0.0,
+            display_string: String::from("+10"),
+            number_value: 10.0,
         },
         resolution: 100,
     };
