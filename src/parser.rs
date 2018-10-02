@@ -110,6 +110,17 @@ named!(parse_log2<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_ln<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("ln") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Ln,
+            child_node: Box::new(res),
+        })
+    )
+);
+
 named!(parse_exp<CompleteStr, ExpressionNode>,
     do_parse!(
         tag!("exp") >>
@@ -134,6 +145,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_tan        |
         parse_abs        |
         parse_log2       |
+        parse_ln         |
         parse_exp        |
         parse_variable
     )
@@ -148,7 +160,7 @@ named!(parse_priority_1<CompleteStr, ExpressionNode>,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
                     '^' => BinaryOperator::Exponentiation,
-                    // For now, default to Exponentiatino.
+                    // For now, default to Exponentiation.
                     _ => BinaryOperator::Exponentiation,
                 };
                 ExpressionNode::BinaryExprNode {
@@ -485,5 +497,14 @@ fn test_parse_term() {
             .evaluate(&vars_map)
             .unwrap(),
         3.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("ln(2.718)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        1.0,
     );
 }

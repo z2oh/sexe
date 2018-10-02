@@ -16,10 +16,11 @@ Currently, only a limited set of operators are implemented:
 * Multiplication
 * Division
 * Sin
-* Cosin
+* Cos
 * Tan
 * Abs
-* Log2
+* Log2 NOTE: Start X must be >= 1
+* Ln NOTE: Start X must be >= 1
 * Negation
 
 More will be coming after other features are stabilized.

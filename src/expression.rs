@@ -30,6 +30,8 @@ pub enum UnaryOperator {
     Exp,
     /// Log2: `log2()`
     Log2,
+    /// Ln: `ln()`
+    Ln,
     /// Negation: `-`, as in `-4`
     Negation,
 }
@@ -97,6 +99,7 @@ impl ExpressionNode {
                     UnaryOperator::Abs => Ok(child_value.abs()),
                     UnaryOperator::Exp => Ok(child_value.exp()),
                     UnaryOperator::Log2 => Ok(child_value.log2()),
+                    UnaryOperator::Ln => Ok(child_value.ln()),
                 }
             }
             ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {
