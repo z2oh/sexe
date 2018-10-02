@@ -447,4 +447,13 @@ fn test_parse_term() {
             .unwrap(),
         16.0,
     );
+
+    assert_eq!(
+        parse_expr(CompleteStr("exp(0)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        1.0,
+    )
 }
