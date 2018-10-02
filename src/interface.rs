@@ -182,9 +182,9 @@ impl Application {
                                 Block::default()
                                 .title("Function")
                                 .borders(Borders::ALL)
-                                .border_style(self.box_style(SelectedBox::Function))
+                                .border_style(self.get_box_style(SelectedBox::Function))
                             )
-                            .style(self.input_style(SelectedBox::Function))
+                            .style(self.get_input_style(SelectedBox::Function))
                             .wrap(false)
                             .text(&self.function_input.string)
                             .render(t, &chunks[0]);
@@ -193,9 +193,9 @@ impl Application {
                                 Block::default()
                                 .title("Start X")
                                 .borders(Borders::ALL)
-                                .border_style(self.box_style(SelectedBox::StartX))
+                                .border_style(self.get_box_style(SelectedBox::StartX))
                             )
-                            .style(self.input_style(SelectedBox::StartX))
+                            .style(self.get_input_style(SelectedBox::StartX))
                             .wrap(false)
                             .text(&self.start_x_input.display_string)
                             .render(t, &chunks[1]);
@@ -204,9 +204,9 @@ impl Application {
                                 Block::default()
                                 .title("End X")
                                 .borders(Borders::ALL)
-                                .border_style(self.box_style(SelectedBox::EndX))
+                                .border_style(self.get_box_style(SelectedBox::EndX))
                             )
-                            .style(self.input_style(SelectedBox::EndX))
+                            .style(self.get_input_style(SelectedBox::EndX))
                             .wrap(false)
                             .text(&self.end_x_input.display_string)
                             .render(t, &chunks[2]);
@@ -292,15 +292,12 @@ impl Application {
         }
     }
 
-    fn input_style(&self, selected: SelectedBox) -> Style {
-        if selected == self.selected_box {
-            Style::default().bg(Color::Magenta)
-        } else {
-            Style::default()
-        }
+    fn get_input_style(&self, _selected: SelectedBox) -> Style {
+        // leaving this method as a reference how to change the text of focused input
+        Style::default()
     }
 
-    fn box_style(&self, selected: SelectedBox) -> Style {
+    fn get_box_style(&self, selected: SelectedBox) -> Style {
         if selected == self.selected_box {
             Style::default().fg(Color::Magenta) 
         } else {
