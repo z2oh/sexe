@@ -177,20 +177,35 @@ impl Application {
                     .sizes(&[Size::Percent(60), Size::Percent(20), Size::Percent(20)])
                     .render(t, &chunks[0], |t, chunks| {
                         Paragraph::default()
-                            .block(Block::default().title("Function").borders(Borders::ALL))
-                            .style(Style::default())
+                            .block(
+                                Block::default()
+                                .title("Function")
+                                .borders(Borders::ALL)
+                                .border_style(self.box_style("function"))
+                            )
+                            .style(self.input_style("function"))
                             .wrap(false)
                             .text(&self.function_input.string)
                             .render(t, &chunks[0]);
                         Paragraph::default()
-                            .block(Block::default().title("Start X").borders(Borders::ALL))
-                            .style(Style::default())
+                            .block(
+                                Block::default()
+                                .title("Start X")
+                                .borders(Borders::ALL)
+                                .border_style(self.box_style("start_x"))
+                            )
+                            .style(self.input_style("start_x"))
                             .wrap(false)
                             .text(&self.start_x_input.display_string)
                             .render(t, &chunks[1]);
                         Paragraph::default()
-                            .block(Block::default().title("End X").borders(Borders::ALL))
-                            .style(Style::default())
+                            .block(
+                                Block::default()
+                                .title("End X")
+                                .borders(Borders::ALL)
+                                .border_style(self.box_style("end_x"))
+                            )
+                            .style(self.input_style("end_x"))
                             .wrap(false)
                             .text(&self.end_x_input.display_string)
                             .render(t, &chunks[2]);
@@ -273,6 +288,32 @@ impl Application {
         }
         else {
             evaluate_function_over_domain(self.start_x_input.number_value, self.end_x_input.number_value, self.resolution, &self.function_input.string)
+        }
+    }
+
+    fn input_style(&self, input_name: &str) -> Style {
+        let selected_box_name = match self.selected_box {
+            SelectedBox::Function => "function",
+            SelectedBox::StartX =>"start_x",
+            SelectedBox::EndX => "end_x",
+        };
+        if selected_box_name == input_name {
+            Style::default().bg(Color::DarkGray)
+        } else {
+            Style::default()
+        }
+    }
+
+    fn box_style(&self, input_name: &str) -> Style {
+        let selected_box_name = match self.selected_box {
+            SelectedBox::Function => "function",
+            SelectedBox::StartX =>"start_x",
+            SelectedBox::EndX => "end_x",
+        };
+        if selected_box_name == input_name {
+            Style::default().fg(Color::DarkGray)
+        } else {
+            Style::default()
         }
     }
 }
