@@ -15,6 +15,7 @@ use std::collections::HashMap;
 
 use parser;
 
+#[derive(PartialEq, Eq)]
 enum SelectedBox {
     Function,
     StartX,
@@ -181,9 +182,9 @@ impl Application {
                                 Block::default()
                                 .title("Function")
                                 .borders(Borders::ALL)
-                                .border_style(self.box_style("function"))
+                                .border_style(self.box_style(SelectedBox::Function))
                             )
-                            .style(self.input_style("function"))
+                            .style(self.input_style(SelectedBox::Function))
                             .wrap(false)
                             .text(&self.function_input.string)
                             .render(t, &chunks[0]);
@@ -192,9 +193,9 @@ impl Application {
                                 Block::default()
                                 .title("Start X")
                                 .borders(Borders::ALL)
-                                .border_style(self.box_style("start_x"))
+                                .border_style(self.box_style(SelectedBox::StartX))
                             )
-                            .style(self.input_style("start_x"))
+                            .style(self.input_style(SelectedBox::StartX))
                             .wrap(false)
                             .text(&self.start_x_input.display_string)
                             .render(t, &chunks[1]);
@@ -203,9 +204,9 @@ impl Application {
                                 Block::default()
                                 .title("End X")
                                 .borders(Borders::ALL)
-                                .border_style(self.box_style("end_x"))
+                                .border_style(self.box_style(SelectedBox::EndX))
                             )
-                            .style(self.input_style("end_x"))
+                            .style(self.input_style(SelectedBox::EndX))
                             .wrap(false)
                             .text(&self.end_x_input.display_string)
                             .render(t, &chunks[2]);
@@ -291,27 +292,17 @@ impl Application {
         }
     }
 
-    fn input_style(&self, input_name: &str) -> Style {
-        let selected_box_name = match self.selected_box {
-            SelectedBox::Function => "function",
-            SelectedBox::StartX =>"start_x",
-            SelectedBox::EndX => "end_x",
-        };
-        if selected_box_name == input_name {
+    fn input_style(&self, selected: SelectedBox) -> Style {
+        if selected == self.selected_box {
             Style::default().bg(Color::Magenta)
         } else {
             Style::default()
         }
     }
 
-    fn box_style(&self, input_name: &str) -> Style {
-        let selected_box_name = match self.selected_box {
-            SelectedBox::Function => "function",
-            SelectedBox::StartX =>"start_x",
-            SelectedBox::EndX => "end_x",
-        };
-        if selected_box_name == input_name {
-            Style::default().fg(Color::Magenta)
+    fn box_style(&self, selected: SelectedBox) -> Style {
+        if selected == self.selected_box {
+            Style::default().fg(Color::Magenta) 
         } else {
             Style::default().fg(Color::Gray)
         }
