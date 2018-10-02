@@ -69,6 +69,11 @@ impl Input for NumberInput {
             event::Key::Char('-') => {
                 self.display_string.replace_range(..1, "-");
             },
+            event::Key::Char('.') => {
+                if !self.display_string.contains(".") {
+                    self.display_string.push('.');
+                }
+            },
             _ => (),
         };
         self.number_value = self.display_string.parse().unwrap();
