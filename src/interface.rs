@@ -298,7 +298,7 @@ impl Application {
             SelectedBox::EndX => "end_x",
         };
         if selected_box_name == input_name {
-            Style::default().bg(Color::DarkGray)
+            Style::default().bg(Color::Magenta)
         } else {
             Style::default()
         }
@@ -311,9 +311,9 @@ impl Application {
             SelectedBox::EndX => "end_x",
         };
         if selected_box_name == input_name {
-            Style::default().fg(Color::DarkGray)
+            Style::default().fg(Color::Magenta)
         } else {
-            Style::default()
+            Style::default().fg(Color::Gray)
         }
     }
 }
