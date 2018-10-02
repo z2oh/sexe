@@ -99,6 +99,17 @@ named!(parse_abs<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_log2<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("log2") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Log2,
+            child_node: Box::new(res),
+        })
+    )
+);
+
 named!(parse_exp<CompleteStr, ExpressionNode>,
     do_parse!(
         tag!("exp") >>
@@ -122,6 +133,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_cos        |
         parse_tan        |
         parse_abs        |
+        parse_log2       |
         parse_exp        |
         parse_variable
     )
@@ -455,5 +467,23 @@ fn test_parse_term() {
             .evaluate(&vars_map)
             .unwrap(),
         1.0,
-    )
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("log2(2)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        1.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("log2(8)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        3.0,
+    );
 }

@@ -10,7 +10,20 @@ There are three components to this project:
 - A parser to parse human written expressions into an expression model that can be evaluated ([src/parser.rs](src/parser.rs))
 - A graphing interface for the terminal, to graph functions across some domain ([src/interface.rs](src/interface.rs))
 
-Currently, only a limited set of operators are implemented: addition, subtraction, multiplication, division, negation, sin, cosin, tan, abs, and exp. More will be coming after other features are stabilized.
+Currently, only a limited set of operators are implemented:
+* Addition
+* Subtraction
+* Multiplication
+* Division
+* Sin
+* Cosin
+* Tan
+* Abs
+* Log2
+* Negation
+
+More will be coming after other features are stabilized.
+
 
 ## Installation
 
