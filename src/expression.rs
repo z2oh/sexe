@@ -101,11 +101,11 @@ impl ExpressionNode {
                     UnaryOperator::Exp => Ok(child_value.exp()),
                     // We must wrap problematic functions to prevent errors
                     UnaryOperator::Log2 => match child_value {
-                        x if (x>1.0f64) => Ok(x.log2()),
+                        x if (x>0.0f64) => Ok(x.log2()),
                         _ => Err(EvaluationError::IllegalArithmeticError)
                     },
                     UnaryOperator::Ln => match child_value {
-                        x if (x>1.0f64) => Ok(x.ln()),
+                        x if (x>0.0f64) => Ok(x.ln()),
                         _ => Err(EvaluationError::IllegalArithmeticError)
                     },
                 }
