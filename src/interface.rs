@@ -119,6 +119,8 @@ fn evaluate_function_over_domain(start_x: f64, end_x: f64, resolution: u32, func
     let mut vars_map = HashMap::new();
     vars_map.insert("x".to_string(), start_x);
 
+    // Attempt to evaluate a mathematical function from user input
+    // func is of type ExpressionNode
     let func = match parser::parse_expr(CompleteStr(function_string)) {
         Ok((rem, func)) => {
             if rem.len() > 0 {
@@ -133,6 +135,8 @@ fn evaluate_function_over_domain(start_x: f64, end_x: f64, resolution: u32, func
 
     let step_width = (end_x - start_x) / resolution as f64;
 
+    // Collect all (x,y) pixel coordinates that span the width of the resolution
+    // and adhere to func
     Ok((0..resolution).map(|x| start_x + (x as f64 * step_width)).filter_map(|x| {
         if let Some(val) = vars_map.get_mut(&"x".to_string()) {
             *val = x;
