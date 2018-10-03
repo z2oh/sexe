@@ -63,6 +63,7 @@ pub enum ExpressionNode {
 #[derive(Debug)]
 pub enum EvaluationError {
     VariableNotFoundError,
+    IllegalArithmeticError,
 }
 
 impl ExpressionNode {
@@ -98,8 +99,15 @@ impl ExpressionNode {
                     UnaryOperator::Negation => Ok(-child_value),
                     UnaryOperator::Abs => Ok(child_value.abs()),
                     UnaryOperator::Exp => Ok(child_value.exp()),
-                    UnaryOperator::Log2 => Ok(child_value.log2()),
-                    UnaryOperator::Ln => Ok(child_value.ln()),
+                    // We must wrap problematic functions to prevent errors
+                    UnaryOperator::Log2 => match child_value {
+                        x if (x>0.0f64) => Ok(x.log2()),
+                        _ => Err(EvaluationError::IllegalArithmeticError)
+                    },
+                    UnaryOperator::Ln => match child_value {
+                        x if (x>0.0f64) => Ok(x.ln()),
+                        _ => Err(EvaluationError::IllegalArithmeticError)
+                    },
                 }
             }
             ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {
