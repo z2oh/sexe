@@ -270,7 +270,9 @@ impl Application {
             // TODO: Handle plotting errors and display error messages.
             match self.plot_function() {
                 Ok(vec) => {
-                    self.evaluation = vec;
+                    // Filters all instances of f64::NAN from the vector
+                    self.evaluation = vec.into_iter()
+                        .filter(|&(_,a)| a.is_normal()).collect();
                     let (start_y, end_y) = determine_y_bounds(&self.evaluation);
                     self.start_y = start_y;
                     self.end_y = end_y;
