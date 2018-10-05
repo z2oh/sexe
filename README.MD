@@ -10,7 +10,7 @@ There are three components to this project:
 - A parser to parse human written expressions into an expression model that can be evaluated ([src/parser.rs](src/parser.rs))
 - A graphing interface for the terminal, to graph functions across some domain ([src/interface.rs](src/interface.rs))
 
-Currently, only a limited set of operators are implemented:
+Currently, the operators are implemented:
 * Addition
 * Subtraction
 * Multiplication
@@ -19,12 +19,11 @@ Currently, only a limited set of operators are implemented:
 * Cos
 * Tan
 * Abs
-* Log2 NOTE: Start X must be >= 1
-* Ln NOTE: Start X must be >= 1
+* Log2
+* Ln
 * Negation
 
-More will be coming after other features are stabilized.
-
+Want to add a new function/operator? Make an issue or PR!
 
 ## Installation
 
