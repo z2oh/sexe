@@ -146,7 +146,7 @@ named!(parse_exp<CompleteStr, ExpressionNode>,
 
 named!(parse_acos<CompleteStr, ExpressionNode>,
     do_parse!(
-        tag!("acos") >>
+        alt!(tag!("acos") | tag!("arccos")) >>
         res: parse_parens >>
         (ExpressionNode::UnaryExprNode {
             operator: UnaryOperator::Acos,
@@ -157,7 +157,7 @@ named!(parse_acos<CompleteStr, ExpressionNode>,
 
 named!(parse_asin<CompleteStr, ExpressionNode>,
     do_parse!(
-        tag!("asin") >>
+        alt!(tag!("asin") | tag!("arcsin")) >>
         res: parse_parens >>
         (ExpressionNode::UnaryExprNode {
             operator: UnaryOperator::Asin,
