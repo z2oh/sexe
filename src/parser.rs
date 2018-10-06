@@ -515,8 +515,14 @@ fn test_parse_term() {
         3.0,
     );
 
+    let x = parse_expr(CompleteStr("log(3,9,5)")).unwrap().1.evaluate(&vars_map);
+    let _test_err = match x {
+        Err(EvaluationError::WrongNumberOfArgsError) => "discard",
+        e => panic!("expected WrongNumberOfArgsError, found {:?}", e),
+    };
+
     assert_eq!(
-        parse_expr(CompleteStr("log(3,9)"))
+        parse_expr(CompleteStr("log(9,3)"))
             .unwrap()
             .1
             .evaluate(&vars_map)

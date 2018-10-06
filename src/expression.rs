@@ -75,6 +75,7 @@ pub enum ExpressionNode {
 #[derive(Debug)]
 pub enum EvaluationError {
     VariableNotFoundError,
+    WrongNumberOfArgsError,
 }
 
 impl ExpressionNode {
@@ -123,7 +124,10 @@ impl ExpressionNode {
                     child_values.push(node.evaluate(&vars)?);
                 }
                 match operator {
-                    NaryOperator::Log => Ok(child_values[0].log(child_values[1])),
+                    NaryOperator::Log => match child_values.len() {
+                        2 => Ok(child_values[0].log(child_values[1])),
+                        _ => Err(EvaluationError::WrongNumberOfArgsError),
+                    }
                 }
             }
             ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {
