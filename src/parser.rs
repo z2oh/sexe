@@ -1,6 +1,7 @@
 use expression::*;
 use nom;
 use nom::types::CompleteStr;
+use std::f64::consts::PI;
 
 // This is a custom implementation of nom::recognize_float that does not parse
 // the optional sign before the number, so that expressions like `x+3` parse
@@ -79,10 +80,21 @@ named!(parse_cos<CompleteStr, ExpressionNode>,
 
 named!(parse_tan<CompleteStr, ExpressionNode>,
     do_parse!(
-        tag!("tan") >>
+        alt!(tag!("tan") | tag!("tg")) >>
         res: parse_parens >>
         (ExpressionNode::UnaryExprNode {
             operator: UnaryOperator::Tan,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_ctan<CompleteStr, ExpressionNode>,
+    do_parse!(
+        alt_complete!(tag!("ctan") | tag!("ctg")) >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Ctan,
             child_node: Box::new(res),
         })
     )
@@ -132,6 +144,42 @@ named!(parse_exp<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_acos<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("acos") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Acos,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_asin<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("asin") >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Asin,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_e<CompleteStr, ExpressionNode>,
+    do_parse!(
+        alt!(tag!("E") | tag!("e")) >>
+        (ExpressionNode::ConstantExprNode { value: 1.0f64.exp() })
+    )
+);
+
+named!(parse_pi<CompleteStr, ExpressionNode>,
+    do_parse!(
+        alt!(tag!("PI") | tag!("pi") | tag!("Pi") | tag!("π")) >>
+        (ExpressionNode::ConstantExprNode { value: PI })
+    )
+);
+
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
@@ -143,6 +191,11 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_sin        |
         parse_cos        |
         parse_tan        |
+        parse_e          |
+        parse_pi         |
+        parse_ctan       |
+        parse_asin       |
+        parse_acos       |
         parse_abs        |
         parse_log2       |
         parse_ln         |
