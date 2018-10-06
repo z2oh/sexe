@@ -132,6 +132,21 @@ named!(parse_exp<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_args<CompleteStr, Vec<ExpressionNode>>,
+    delimited!( char!('('), separated_list!(tag!(","), parse_expr), char!(')') )
+);
+
+named!(parse_log<CompleteStr, ExpressionNode>,
+    do_parse!(
+        tag!("log") >>
+        res: parse_args >>
+        (ExpressionNode::NaryExprNode {
+            operator: NaryOperator::Log,
+            child_nodes: Box::new(res),
+        })
+    )
+);
+
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
@@ -147,6 +162,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_log2       |
         parse_ln         |
         parse_exp        |
+        parse_log        |
         parse_variable
     )
 );
@@ -497,6 +513,15 @@ fn test_parse_term() {
             .evaluate(&vars_map)
             .unwrap(),
         3.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("log(3,9)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        2.0,
     );
 
     assert_eq!(
