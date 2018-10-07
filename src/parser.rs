@@ -192,7 +192,7 @@ named!(parse_pi<CompleteStr, ExpressionNode>,
     )
 );
 
-named!(parse_modul<CompleteStr, ExpressionNode>,
+named!(parse_module<CompleteStr, ExpressionNode>,
     do_parse!(
         res: delimited!( char!('|'), parse_expr, char!('|') ) >>
         (ExpressionNode::UnaryExprNode {
@@ -217,7 +217,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_asin       |
         parse_acos       |
         parse_abs        |
-        parse_modul      |
+        parse_module     |
         parse_log2       |
         parse_ln         |
         parse_exp        |
