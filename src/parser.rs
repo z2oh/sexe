@@ -168,12 +168,12 @@ named!(parse_asin<CompleteStr, ExpressionNode>,
 
 named!(parse_e<CompleteStr, ExpressionNode>,
     do_parse!(
-        tag_no_case!("e") >>
+        beg: tag_no_case!("e") >>
         rest: take_while!(|x| nom::is_alphabetic(x as u8))  >>
         (
             match rest.len() {
                 0 => ExpressionNode::ConstantExprNode { value: E },
-                _ => ExpressionNode::VariableExprNode { variable_key: format!("e{}", rest) }
+                _ => ExpressionNode::VariableExprNode { variable_key: format!("{}{}", beg, rest) }
             }
         )
     )
