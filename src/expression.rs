@@ -42,6 +42,13 @@ pub enum UnaryOperator {
     Acos
 }
 
+/// These are the supported N-ary operators.
+#[derive(Debug)]
+pub enum NaryOperator {
+    /// Log: `log(base, x)`
+    Log,
+}
+
 /// An expression node is any part of the parsed expression tree. These build up the expression
 /// recursively. Every value, variable, and operator is wrapped in an `ExpressionNode`.
 #[derive(Debug)]
@@ -59,6 +66,11 @@ pub enum ExpressionNode {
         operator: UnaryOperator,
         child_node: Box<ExpressionNode>,
     },
+    /// This variant holds an operator that is to be applied to evaluated values of its child subtrees.
+    NaryExprNode {
+        operator: NaryOperator,
+        child_nodes: Box<Vec<ExpressionNode>>,
+    },
     /// This variant holds an index into the `vars` array which indicates which variable of the
     /// expression it represents.
     VariableExprNode { variable_key: String },
@@ -69,6 +81,7 @@ pub enum ExpressionNode {
 #[derive(Debug)]
 pub enum EvaluationError {
     VariableNotFoundError,
+    WrongNumberOfArgsError,
 }
 
 impl ExpressionNode {
@@ -111,6 +124,21 @@ impl ExpressionNode {
                     UnaryOperator::Acos => Ok(child_value.acos())
                 }
             }
+            ExpressionNode::NaryExprNode {
+                operator,
+                child_nodes,
+            } => {
+                let mut child_values: Vec<f64> = Vec::new();
+                for node in child_nodes.iter() {
+                    child_values.push(node.evaluate(&vars)?);
+                }
+                match operator {
+                    NaryOperator::Log => match child_values.len() {
+                        2 => Ok(child_values[0].log(child_values[1])),
+                        _ => Err(EvaluationError::WrongNumberOfArgsError),
+                    }
+                }
+            }
             ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {
                 Some(x) => Ok(*x),
                 None => Err(EvaluationError::VariableNotFoundError),
@@ -125,7 +153,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn complex_epression_evaluates_correctly() {
+    fn complex_expression_evaluates_correctly() {
         let complex_expression = ExpressionNode::BinaryExprNode {
             operator: BinaryOperator::Multiplication,
             left_node: Box::new(ExpressionNode::ConstantExprNode { value: 4.0 }),
