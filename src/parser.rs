@@ -7,19 +7,15 @@ use std::f64::consts::{E, PI};
 // the optional sign before the number, so that expressions like `x+3` parse
 // correctly and not as `x(+3)`.
 named!(recognize_float<CompleteStr, CompleteStr>,
-  recognize!(
-    tuple!(
-      alt!(
-        value!((), tuple!(nom::digit, opt!(pair!(char!('.'), opt!(nom::digit)))))
-      | value!((), tuple!(char!('.'), nom::digit))
-      ),
-      opt!(tuple!(
-        alt!(char!('e') | char!('E')),
-        nom::digit
+    recognize!(
+        tuple!(
+            alt!(
+                value!((), tuple!(nom::digit, opt!(pair!(char!('.'), opt!(nom::digit))))) |
+                value!((), tuple!(char!('.'), nom::digit))
+            ),
+            opt!(tuple!(alt!(char!('e') | char!('E')), nom::digit))
         )
-      )
     )
-  )
 );
 
 named!(parse_double<CompleteStr, f64>,
@@ -35,8 +31,8 @@ named!(parse_constant<CompleteStr, ExpressionNode>,
 
 named!(parse_variable<CompleteStr, ExpressionNode>,
     do_parse!(
-        var: take_while1!(|x| nom::is_alphabetic(x as u8)) >>
-        ( ExpressionNode::VariableExprNode { variable_key: var.to_string() } )
+        var: take_while1!(|x: char| x.is_alphabetic()) >>
+        (ExpressionNode::VariableExprNode { variable_key: var.to_string(), })
     )
 );
 
@@ -53,7 +49,7 @@ named!(parse_coefficient<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_parens<CompleteStr, ExpressionNode>,
-    delimited!( char!('('), parse_expr, char!(')') )
+    delimited!(char!('('), parse_expr, char!(')'))
 );
 
 named!(parse_sin<CompleteStr, ExpressionNode>,
@@ -145,7 +141,7 @@ named!(parse_exp<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_args<CompleteStr, Vec<ExpressionNode>>,
-    delimited!( char!('('), separated_list!(tag!(","), parse_expr), char!(')') )
+    delimited!(char!('('), separated_list!(tag!(","), parse_expr), char!(')'))
 );
 
 named!(parse_log<CompleteStr, ExpressionNode>,
@@ -184,7 +180,7 @@ named!(parse_asin<CompleteStr, ExpressionNode>,
 named!(parse_e<CompleteStr, ExpressionNode>,
     do_parse!(
         beg: tag_no_case!("e") >>
-        rest: take_while!(|x| nom::is_alphabetic(x as u8))  >>
+        rest: take_while!(|x: char| x.is_alphabetic())  >>
         (
             match rest.len() {
                 0 => ExpressionNode::ConstantExprNode { value: E },
@@ -197,7 +193,7 @@ named!(parse_e<CompleteStr, ExpressionNode>,
 named!(parse_pi<CompleteStr, ExpressionNode>,
     do_parse!(
         beg: alt!(tag_no_case!("pi") | tag!("π")) >>
-        rest: take_while!(|ch: char| ch.is_alphabetic()) >>
+        rest: take_while!(|x: char| x.is_alphabetic()) >>
         (
             match rest.len() {
                 0 => ExpressionNode::ConstantExprNode { value: PI },
@@ -207,9 +203,9 @@ named!(parse_pi<CompleteStr, ExpressionNode>,
     )
 );
 
-named!(parse_module<CompleteStr, ExpressionNode>,
+named!(parse_modulus<CompleteStr, ExpressionNode>,
     do_parse!(
-        res: delimited!( char!('|'), parse_expr, char!('|') ) >>
+        res: delimited!(char!('|'), parse_expr, char!('|')) >>
         (ExpressionNode::UnaryExprNode {
             operator: UnaryOperator::Abs,
             child_node: Box::new(res),
@@ -233,7 +229,7 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_asin       |
         parse_acos       |
         parse_abs        |
-        parse_module     |
+        parse_modulus    |
         parse_log2       |
         parse_ln         |
         parse_exp        |
@@ -608,7 +604,7 @@ fn test_parse_term() {
     );
 
     assert_eq!(
-        parse_expr(CompleteStr("ln(2.718)"))
+        parse_expr(CompleteStr("ln(e)"))
             .unwrap()
             .1
             .evaluate(&vars_map)
