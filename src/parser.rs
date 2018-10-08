@@ -49,7 +49,7 @@ named!(parse_coefficient<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_parens<CompleteStr, ExpressionNode>,
-    delimited!(char!('('), parse_expr, char!(')'))
+    ws!(delimited!(char!('('), parse_expr, char!(')')))
 );
 
 named!(parse_sin<CompleteStr, ExpressionNode>,
@@ -219,7 +219,7 @@ named!(pub parse_expr<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_priority_0<CompleteStr, ExpressionNode>,
-    alt_complete!(
+    ws!(alt_complete!(
         parse_constant   |
         parse_parens     |
         parse_sin        |
@@ -237,14 +237,14 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_e          |
         parse_pi         |
         parse_variable
-    )
+    ))
 );
 
 named!(parse_priority_1<CompleteStr, ExpressionNode>,
     do_parse!(
         init: parse_priority_0 >>
         res: fold_many0!(
-            pair!(alt!(tag!("^")), parse_priority_0),
+            ws!(pair!(alt!(tag!("^")), parse_priority_0)),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -270,7 +270,7 @@ named!(parse_priority_2<CompleteStr, ExpressionNode>,
             parse_priority_1
         ) >>
         res: fold_many0!(
-            pair!(alt!(tag!("*") | tag!("/")), parse_priority_1),
+            ws!(pair!(alt!(tag!("*") | tag!("/")), parse_priority_1)),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -312,7 +312,7 @@ named!(parse_priority_4<CompleteStr, ExpressionNode>,
     do_parse!(
         init: parse_priority_3 >>
         res: fold_many0!(
-            pair!(alt!(tag!("+") | tag!("-")), parse_priority_3),
+            ws!(pair!(alt!(tag!("+") | tag!("-")), parse_priority_3)),
             init,
             |acc, (op, val): (CompleteStr, ExpressionNode)| {
                 let operator = match op.as_bytes()[0] as char {
@@ -604,6 +604,15 @@ fn test_parse_term() {
     );
 
     assert_eq!(
+        parse_expr(CompleteStr("3 -   (2  -  3 + 1   ) + (  4 - 1    +4 )"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        10.0,
+    );
+
+    assert_eq!(
         parse_expr(CompleteStr("ln(e)"))
             .unwrap()
             .1
@@ -611,4 +620,59 @@ fn test_parse_term() {
             .unwrap(),
         1.0,
     );
+
+    assert_eq!(
+        parse_expr(CompleteStr("sin (   0   )"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        0.0,
+    );
+
+    assert_eq!(
+        parse_expr(CompleteStr("sin (   0 * pi  )"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        0.0,
+    );
+
+    let x = parse_expr(CompleteStr("si n ( 0 )")).unwrap().1.evaluate(&vars_map);
+    let _test_err = match x {
+        Err(_) => "discard",
+        e => panic!("expected Err, found {:?}", e),
+    };
+
+    assert_eq!(
+        parse_expr(CompleteStr("log( 9 , 3)"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        2.0,
+    );
+
+    let x = parse_expr(CompleteStr("log(3,    9   ,5 )")).unwrap().1.evaluate(&vars_map);
+    let _test_err = match x {
+        Err(EvaluationError::WrongNumberOfArgsError) => "discard",
+        e => panic!("expected WrongNumberOfArgsError, found {:?}", e),
+    };
+
+    vars_map.insert("foo".to_string(), 10.0);
+
+    assert_eq!(
+        parse_expr(CompleteStr("foo"))
+            .unwrap()
+            .1
+            .evaluate(&vars_map)
+            .unwrap(),
+        10.0,
+    );
+    let x = parse_expr(CompleteStr("fo o")).unwrap().1.evaluate(&vars_map);
+    let _test_err = match x {
+        Err(EvaluationError::VariableNotFoundError) => "discard",
+        e => panic!("expected VariableNotFoundError, found {:?}", e),
+    };
 }
