@@ -24,6 +24,8 @@ pub enum UnaryOperator {
     Cos,
     /// Tan: `tan()`
     Tan,
+    /// Ctan `1.0 / tan()`
+    Ctan,
     /// Abs: `abs()`
     Abs,
     /// Exp: `exp()`
@@ -34,6 +36,10 @@ pub enum UnaryOperator {
     Ln,
     /// Negation: `-`, as in `-4`
     Negation,
+    /// Asin: `asin()`
+    Asin,
+    /// Acos: `acos()`
+    Acos
 }
 
 /// These are the supported N-ary operators.
@@ -108,11 +114,14 @@ impl ExpressionNode {
                     UnaryOperator::Sin => Ok(child_value.sin()),
                     UnaryOperator::Cos => Ok(child_value.cos()),
                     UnaryOperator::Tan => Ok(child_value.tan()),
+                    UnaryOperator::Ctan => Ok(1.0 / child_value.tan()),
                     UnaryOperator::Negation => Ok(-child_value),
                     UnaryOperator::Abs => Ok(child_value.abs()),
                     UnaryOperator::Exp => Ok(child_value.exp()),
                     UnaryOperator::Log2 => Ok(child_value.log2()),
                     UnaryOperator::Ln => Ok(child_value.ln()),
+                    UnaryOperator::Asin => Ok(child_value.asin()),
+                    UnaryOperator::Acos => Ok(child_value.acos())
                 }
             }
             ExpressionNode::NaryExprNode {
