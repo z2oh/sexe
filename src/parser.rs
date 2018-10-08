@@ -1,6 +1,7 @@
 use expression::*;
 use nom;
 use nom::types::CompleteStr;
+use std::f64::consts::{E, PI};
 
 // This is a custom implementation of nom::recognize_float that does not parse
 // the optional sign before the number, so that expressions like `x+3` parse
@@ -35,7 +36,7 @@ named!(parse_constant<CompleteStr, ExpressionNode>,
 named!(parse_variable<CompleteStr, ExpressionNode>,
     do_parse!(
         var: take_while1!(|x| nom::is_alphabetic(x as u8)) >>
-        (ExpressionNode::VariableExprNode { variable_key: var.to_string(), })
+        ( ExpressionNode::VariableExprNode { variable_key: var.to_string() } )
     )
 );
 
@@ -79,10 +80,21 @@ named!(parse_cos<CompleteStr, ExpressionNode>,
 
 named!(parse_tan<CompleteStr, ExpressionNode>,
     do_parse!(
-        tag!("tan") >>
+        alt!(tag!("tan") | tag!("tg")) >>
         res: parse_parens >>
         (ExpressionNode::UnaryExprNode {
             operator: UnaryOperator::Tan,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_ctan<CompleteStr, ExpressionNode>,
+    do_parse!(
+        alt_complete!(tag!("ctan") | tag!("ctg")) >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Ctan,
             child_node: Box::new(res),
         })
     )
@@ -132,6 +144,64 @@ named!(parse_exp<CompleteStr, ExpressionNode>,
     )
 );
 
+named!(parse_acos<CompleteStr, ExpressionNode>,
+    do_parse!(
+        alt!(tag!("acos") | tag!("arccos")) >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Acos,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_asin<CompleteStr, ExpressionNode>,
+    do_parse!(
+        alt!(tag!("asin") | tag!("arcsin")) >>
+        res: parse_parens >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Asin,
+            child_node: Box::new(res),
+        })
+    )
+);
+
+named!(parse_e<CompleteStr, ExpressionNode>,
+    do_parse!(
+        beg: tag_no_case!("e") >>
+        rest: take_while!(|x| nom::is_alphabetic(x as u8))  >>
+        (
+            match rest.len() {
+                0 => ExpressionNode::ConstantExprNode { value: E },
+                _ => ExpressionNode::VariableExprNode { variable_key: format!("{}{}", beg, rest) }
+            }
+        )
+    )
+);
+
+named!(parse_pi<CompleteStr, ExpressionNode>,
+    do_parse!(
+        beg: alt!(tag_no_case!("pi") | tag!("π")) >>
+        rest: take_while!(|ch: char| ch.is_alphabetic()) >>
+        (
+            match rest.len() {
+                0 => ExpressionNode::ConstantExprNode { value: PI },
+                _ => ExpressionNode::VariableExprNode { variable_key: format!("{}{}", beg, rest) }
+            }
+        )
+    )
+);
+
+named!(parse_module<CompleteStr, ExpressionNode>,
+    do_parse!(
+        res: delimited!( char!('|'), parse_expr, char!('|') ) >>
+        (ExpressionNode::UnaryExprNode {
+            operator: UnaryOperator::Abs,
+            child_node: Box::new(res),
+        })
+    )
+);
+
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
@@ -143,10 +213,16 @@ named!(parse_priority_0<CompleteStr, ExpressionNode>,
         parse_sin        |
         parse_cos        |
         parse_tan        |
+        parse_ctan       |
+        parse_asin       |
+        parse_acos       |
         parse_abs        |
+        parse_module     |
         parse_log2       |
         parse_ln         |
         parse_exp        |
+        parse_e          |
+        parse_pi         |
         parse_variable
     )
 );
