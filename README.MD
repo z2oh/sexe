@@ -1,4 +1,5 @@
 # (s)imple (ex)pression (e)valuator
+[![Build Status](https://travis-ci.org/z2oh/sexe.svg?branch=master)](https://travis-ci.org/z2oh/sexe)
 
 <center>
     <img src="demo.png">
