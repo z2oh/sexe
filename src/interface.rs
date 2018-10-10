@@ -109,7 +109,10 @@ trait Input {
 
 impl Input for NumberInput {
     fn build_for_output(&self, active: bool) -> String {
-        let unwrap = |v, o| match v { Some(v) => v, None => o};
+        let unwrap = |v, o| match v {
+            Some(v) => v,
+            None => o,
+        };
         let behind = unwrap(self.display_string.get(..self.cursor), "");
         let ahead = unwrap(self.display_string.get(self.cursor + 1..), "");
         let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
@@ -176,7 +179,10 @@ impl Input for NumberInput {
 
 impl Input for TextInput {
     fn build_for_output(&self, active: bool) -> String {
-        let unwrap = |v, o| match v { Some(v) => v, None => o};
+        let unwrap = |v, o| match v {
+            Some(v) => v,
+            None => o,
+        };
         let behind = unwrap(self.string.get(..self.cursor), "");
         let ahead = unwrap(self.string.get(self.cursor + 1..), "");
         let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
@@ -323,7 +329,7 @@ impl Application {
                                     .title("Function")
                                     .borders(Borders::ALL)
                                     .border_style(self.get_box_style(SelectedBox::Function)),
-                            ).style(Style::default())
+                            ).style(self.get_input_style(SelectedBox::Function))
                             .text(
                                 &self
                                     .function_input
