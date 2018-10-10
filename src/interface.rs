@@ -135,14 +135,8 @@ impl Input for NumberInput {
         }
     }
     fn put(&mut self, ch: char) {
-        if self.display_string == "+0" || self.display_string == "-0" {
-            self.display_string.pop();
-            self.display_string.push(ch);
-            self.cursor = self.display_string.len();
-        } else {
-            self.display_string.insert(self.cursor, ch);
-            self.cursor += 1;
-        }
+        self.display_string.insert(self.cursor, ch);
+        self.cursor += 1;
     }
     fn shift_cursor(&mut self, direction: Shifting) {
         use self::Shifting::*;
@@ -159,7 +153,14 @@ impl Input for NumberInput {
     fn process_input(&mut self, key: &event::Key) {
         match key {
             event::Key::Backspace => self.pop(),
-            event::Key::Char(digit) if digit.is_ascii_digit() => self.put(*digit),
+            event::Key::Char(digit) if digit.is_ascii_digit() => {
+                if self.display_string == "+0" || self.display_string == "-0" {
+                    self.display_string.pop();
+                    self.display_string.push(*digit);
+                    self.cursor = self.display_string.len();
+                }
+                self.put(*digit)
+            }
             event::Key::Char('+') => {
                 self.display_string.replace_range(..1, "+");
             }
@@ -168,7 +169,7 @@ impl Input for NumberInput {
             }
             event::Key::Char('.') => {
                 if !self.display_string.contains(".") {
-                    self.display_string.push('.');
+                    self.put('.');
                 }
             }
             _ => (),
