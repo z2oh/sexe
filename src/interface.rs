@@ -124,7 +124,8 @@ impl Input for NumberInput {
         }
     }
     fn pop(&mut self) {
-        if self.cursor == 0 {
+        // to disable an unary operator deletion
+        if self.cursor == 1 {
             return;
         } else if self.display_string.len() <= 2 {
             self.display_string = String::from(START_X_PLACEHOLDER);
