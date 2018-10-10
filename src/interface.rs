@@ -109,18 +109,18 @@ trait Input {
 
 impl Input for NumberInput {
     fn build_for_output(&self, active: bool) -> String {
-        let unwrap = |v, o| match v {
-            Some(v) => v,
-            None => o,
-        };
-        let behind = unwrap(self.display_string.get(..self.cursor), "");
-        let ahead = unwrap(self.display_string.get(self.cursor + 1..), "");
-        let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
         if active {
+            let unwrap = |v, o| match v {
+                Some(v) => v,
+                None => o,
+            };
+            let behind = unwrap(self.display_string.get(..self.cursor), "");
+            let ahead = unwrap(self.display_string.get(self.cursor + 1..), "");
+            let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
             // cursor: block
             format!("{}{{mod=invert {}}}{}", behind, under, ahead)
         } else {
-            format!("{}{}{}", behind, under, ahead)
+            format!("{}", self.display_string)
         }
     }
     fn pop(&mut self) {
@@ -179,18 +179,18 @@ impl Input for NumberInput {
 
 impl Input for TextInput {
     fn build_for_output(&self, active: bool) -> String {
-        let unwrap = |v, o| match v {
-            Some(v) => v,
-            None => o,
-        };
-        let behind = unwrap(self.string.get(..self.cursor), "");
-        let ahead = unwrap(self.string.get(self.cursor + 1..), "");
-        let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
         if active {
+            let unwrap = |v, o| match v {
+                Some(v) => v,
+                None => o,
+            };
+            let behind = unwrap(self.string.get(..self.cursor), "");
+            let ahead = unwrap(self.string.get(self.cursor + 1..), "");
+            let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
             // cursor: block
             format!("{}{{mod=invert {}}}{}", behind, under, ahead)
         } else {
-            format!("{}{}{}", behind, under, ahead)
+            format!("{}", self.string)
         }
     }
     fn pop(&mut self) {
