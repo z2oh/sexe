@@ -159,16 +159,10 @@ impl Input for NumberInput {
     fn process_input(&mut self, key: &event::Key) {
         match key {
             event::Key::Backspace => self.pop(),
-            event::Key::Char(digit) if digit.is_ascii_digit() => self.put(*digit),
-            event::Key::Char('+') => {
-                self.display_string.replace_range(..1, "+");
-            }
-            event::Key::Char('-') => {
-                self.display_string.replace_range(..1, "-");
-            }
-            event::Key::Char('.') => {
-                self.put('.');
-            }
+            event::Key::Char(ch) if ch.is_ascii_digit() => self.put(*ch),
+            event::Key::Char('.') => self.put('.'),
+            event::Key::Char('+') => self.display_string.replace_range(..1, "+"),
+            event::Key::Char('-') => self.display_string.replace_range(..1, "-"),
             _ => (),
         };
         self.number_value = self.display_string.parse().unwrap();
