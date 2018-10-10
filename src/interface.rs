@@ -118,7 +118,7 @@ impl Input for NumberInput {
         let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
         if active {
             // cursor: block
-            format!("{{fg=[color] {}}}{{mod=invert {}}}{{fg=[color] {}}}", behind, under, ahead)
+            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
         } else {
             format!("{}{}{}", behind, under, ahead)
         }
@@ -188,7 +188,7 @@ impl Input for TextInput {
         let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
         if active {
             // cursor: block
-            format!("{{fg=[color] {}}}{{mod=invert {}}}{{fg=[color] {}}}", behind, under, ahead)
+            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
         } else {
             format!("{}{}{}", behind, under, ahead)
         }
