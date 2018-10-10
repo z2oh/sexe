@@ -94,60 +94,69 @@ struct NumberInput {
     number_value: f64,
 }
 
-enum Shifting { Right, Left }
+enum Shifting {
+    Right,
+    Left,
+}
 
 trait Input {
     fn process_input(&mut self, key: &event::Key);
     fn pop(&mut self);
     fn put(&mut self, ch: char);
     fn shift_cursor(&mut self, direction: Shifting);
+    fn build_for_output(&self, active: bool) -> String;
 }
 
 impl Input for NumberInput {
+    fn build_for_output(&self, active: bool) -> String {
+        let unwrap = |v, o| match v { Some(v) => v, None => o};
+        let behind = unwrap(self.display_string.get(..self.cursor), "");
+        let ahead = unwrap(self.display_string.get(self.cursor + 1..), "");
+        let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
+        if active {
+            // cursor: block
+            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
+        } else {
+            format!("{}{}{}", behind, under, ahead)
+        }
+    }
     fn pop(&mut self) {
         if self.cursor == 0 {
             return;
+        } else if self.display_string.len() <= 2 {
+            self.display_string = String::from(START_X_PLACEHOLDER);
+            self.cursor = START_X_PLACEHOLDER.len() - 1;
+        } else {
+            self.cursor -= 1;
+            self.display_string.remove(self.cursor);
         }
-        self.display_string.remove(self.cursor - 1);
-        self.cursor -= 1;
     }
     fn put(&mut self, ch: char) {
-        self.display_string.insert(self.cursor, ch);
-        self.cursor += 1;
+        if self.display_string == "+0" || self.display_string == "-0" {
+            self.display_string.pop();
+            self.display_string.push(ch);
+            self.cursor = self.display_string.len();
+        } else {
+            self.display_string.insert(self.cursor, ch);
+            self.cursor += 1;
+        }
     }
     fn shift_cursor(&mut self, direction: Shifting) {
         use self::Shifting::*;
         match direction {
-            Right => {
-                if self.cursor < self.display_string.len() {
-                    self.cursor += 1;
-                }
+            Right => if self.cursor < self.display_string.len() {
+                self.cursor += 1;
             },
-            Left => {
-                // We must not set a cursor behind an unary operator +/-
-                if self.cursor > 1 {
-                    self.cursor -= 1;
-                }
+            // We must not set a cursor behind an unary operator +/-
+            Left => if self.cursor > 1 {
+                self.cursor -= 1;
             },
         };
     }
     fn process_input(&mut self, key: &event::Key) {
         match key {
-            event::Key::Backspace => {
-                // Reset to placeholder if our string is too short.
-                if self.display_string.len() <= 2 {
-                    self.display_string = String::from(START_X_PLACEHOLDER);
-                    self.cursor = START_X_PLACEHOLDER.len();
-                } else {
-                    self.display_string.pop();
-                }
-            }
-            event::Key::Char(digit) if digit.is_ascii_digit() => {
-                if &self.display_string == "+0" || &self.display_string == "-0" {
-                    self.pop();
-                } 
-                self.put(*digit);
-            }
+            event::Key::Backspace => self.pop(),
+            event::Key::Char(digit) if digit.is_ascii_digit() => self.put(*digit),
             event::Key::Char('+') => {
                 self.display_string.replace_range(..1, "+");
             }
@@ -166,12 +175,23 @@ impl Input for NumberInput {
 }
 
 impl Input for TextInput {
-    fn pop(&mut self) {
-        if self.cursor == 0 {
-            return;
+    fn build_for_output(&self, active: bool) -> String {
+        let unwrap = |v, o| match v { Some(v) => v, None => o};
+        let behind = unwrap(self.string.get(..self.cursor), "");
+        let ahead = unwrap(self.string.get(self.cursor + 1..), "");
+        let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
+        if active {
+            // cursor: block
+            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
+        } else {
+            format!("{}{}{}", behind, under, ahead)
         }
-        self.string.remove(self.cursor - 1);
-        self.cursor -= 1;
+    }
+    fn pop(&mut self) {
+        if self.cursor != 0 {
+            self.cursor -= 1;
+            self.string.remove(self.cursor);
+        }
     }
     fn put(&mut self, ch: char) {
         self.string.insert(self.cursor, ch);
@@ -180,15 +200,11 @@ impl Input for TextInput {
     fn shift_cursor(&mut self, direction: Shifting) {
         use self::Shifting::*;
         match direction {
-            Right => {
-                if self.cursor < self.string.len() {
-                    self.cursor += 1;
-                }
+            Right => if self.cursor < self.string.len() {
+                self.cursor += 1;
             },
-            Left => {
-                if self.cursor > 0 {
-                    self.cursor -= 1;
-                }
+            Left => if self.cursor > 0 {
+                self.cursor -= 1;
             },
         };
     }
@@ -263,24 +279,14 @@ fn evaluate_function_over_domain(
 
 impl Application {
     fn process_input(&mut self, key: &event::Key) -> ApplicationOperation {
-        use self::{Shifting::*, SelectedBox::*};
         match key {
             // A Ctrl-C produces an exit command for the application.
             event::Key::Ctrl('c') => return ApplicationOperation::Exit,
             // Left and right change the focused box.
             event::Key::Down => self.selected_box = self.selected_box.previous(),
             event::Key::Up => self.selected_box = self.selected_box.next(),
-
-            event::Key::Left => match self.selected_box {
-                Function => self.function_input.shift_cursor(Left),
-                StartX => self.start_x_input.shift_cursor(Left),
-                EndX => self.end_x_input.shift_cursor(Left),
-            }
-            event::Key::Right => match self.selected_box {
-                Function => self.function_input.shift_cursor(Right),
-                StartX => self.start_x_input.shift_cursor(Right),
-                EndX => self.end_x_input.shift_cursor(Right),
-            }
+            event::Key::Left => self.shift_cursor(Shifting::Left),
+            event::Key::Right => self.shift_cursor(Shifting::Right),
             // Otherwise we hand off input to the children.
             _ => match self.selected_box {
                 SelectedBox::Function => self.function_input.process_input(&key),
@@ -291,7 +297,17 @@ impl Application {
         ApplicationOperation::Noop
     }
 
+    fn shift_cursor(&mut self, dir: Shifting) {
+        use self::SelectedBox::*;
+        match self.selected_box {
+            Function => self.function_input.shift_cursor(dir),
+            StartX => self.start_x_input.shift_cursor(dir),
+            EndX => self.end_x_input.shift_cursor(dir),
+        }
+    }
+
     fn draw(&self, t: &mut Terminal<MouseBackend>, size: &Rect) {
+        use self::SelectedBox::*;
         Group::default()
             .direction(Direction::Vertical)
             .margin(1)
@@ -307,9 +323,12 @@ impl Application {
                                     .title("Function")
                                     .borders(Borders::ALL)
                                     .border_style(self.get_box_style(SelectedBox::Function)),
-                            ).style(self.get_input_style(SelectedBox::Function))
-                            .wrap(false)
-                            .text(&self.function_input.string)
+                            ).style(Style::default())
+                            .text(
+                                &self
+                                    .function_input
+                                    .build_for_output(self.selected_box == Function),
+                            ).wrap(false)
                             .render(t, &chunks[0]);
                         Paragraph::default()
                             .block(
@@ -319,8 +338,11 @@ impl Application {
                                     .border_style(self.get_box_style(SelectedBox::StartX)),
                             ).style(self.get_input_style(SelectedBox::StartX))
                             .wrap(false)
-                            .text(&self.start_x_input.display_string)
-                            .render(t, &chunks[1]);
+                            .text(
+                                &self
+                                    .start_x_input
+                                    .build_for_output(self.selected_box == StartX),
+                            ).render(t, &chunks[1]);
                         Paragraph::default()
                             .block(
                                 Block::default()
@@ -329,7 +351,7 @@ impl Application {
                                     .border_style(self.get_box_style(SelectedBox::EndX)),
                             ).style(self.get_input_style(SelectedBox::EndX))
                             .wrap(false)
-                            .text(&self.end_x_input.display_string)
+                            .text(&self.end_x_input.build_for_output(self.selected_box == EndX))
                             .render(t, &chunks[2]);
                     });
                 Chart::default()
