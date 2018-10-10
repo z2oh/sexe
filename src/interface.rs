@@ -193,8 +193,10 @@ impl Input for TextInput {
         }
     }
     fn put(&mut self, ch: char) {
-        self.string.insert(self.cursor, ch);
-        self.cursor += 1;
+        if ch != '\t' {
+            self.string.insert(self.cursor, ch);
+            self.cursor += 1;
+        }
     }
     fn shift_cursor(&mut self, direction: Shifting) {
         use self::Shifting::*;
