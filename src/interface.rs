@@ -118,7 +118,7 @@ impl Input for NumberInput {
         let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
         if active {
             // cursor: block
-            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
+            format!("{{fg=[color] {}}}{{mod=invert {}}}{{fg=[color] {}}}", behind, under, ahead)
         } else {
             format!("{}{}{}", behind, under, ahead)
         }
@@ -188,7 +188,7 @@ impl Input for TextInput {
         let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
         if active {
             // cursor: block
-            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
+            format!("{{fg=[color] {}}}{{mod=invert {}}}{{fg=[color] {}}}", behind, under, ahead)
         } else {
             format!("{}{}{}", behind, under, ahead)
         }
@@ -451,7 +451,7 @@ impl Application {
 
     fn get_input_style(&self, _selected: SelectedBox) -> Style {
         // leaving this method as a reference how to change the text of focused input
-        Style::default()
+        Style::default().fg(Color::LightGreen)
     }
 
     fn get_box_style(&self, selected: SelectedBox) -> Style {
