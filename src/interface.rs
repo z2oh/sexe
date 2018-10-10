@@ -135,7 +135,7 @@ impl Input for NumberInput {
         }
     }
     fn put(&mut self, ch: char) {
-        if self.display_string == "+0" || self.display_string == "-0" {
+        if ch != '.' && self.display_string == "+0" || self.display_string == "-0" {
             self.display_string.pop();
             self.display_string.push(ch);
             self.cursor = self.display_string.len();
@@ -167,10 +167,7 @@ impl Input for NumberInput {
                 self.display_string.replace_range(..1, "-");
             }
             event::Key::Char('.') => {
-                if !self.display_string.contains(".") {
-                    self.display_string.insert(self.cursor, '.');
-                    self.cursor += 1;
-                }
+                self.put('.');
             }
             _ => (),
         };
