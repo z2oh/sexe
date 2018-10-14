@@ -193,7 +193,7 @@ impl Input for TextInput {
         }
     }
     fn put(&mut self, ch: char) {
-        if ch != '\t' {
+        if ch != '\t' && ch != '\\' {
             self.string.insert(self.cursor, ch);
             self.cursor += 1;
         }
@@ -214,7 +214,8 @@ impl Input for TextInput {
             event::Key::Backspace => {
                 self.pop();
             }
-            event::Key::Char(c) => {
+            //only latin characters and digits
+            eventy::Key::Char(c) if c.is_ascii() => {
                 self.put(*c);
             }
             _ => (),
