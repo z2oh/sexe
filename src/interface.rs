@@ -215,7 +215,7 @@ impl Input for TextInput {
                 self.pop();
             }
             //only latin characters and digits
-            eventy::Key::Char(c) if c.is_ascii() => {
+            event::Key::Char(c) if c.is_ascii() => {
                 self.put(*c);
             }
             _ => (),
