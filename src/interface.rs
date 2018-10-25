@@ -100,14 +100,12 @@ enum ApplicationOperation {
     Noop,
 }
 
-fn determine_y_bounds(vec: &Vec<(f64, f64)>) -> (f64, f64) {
-    let mut current_min = 0.0;
-    let mut current_max = 0.0;
-    for (_, y) in vec {
-        current_min = if *y < current_min { *y } else { current_min };
-        current_max = if *y > current_max { *y } else { current_max };
-    }
-    (current_min, current_max)
+fn determine_y_bounds(vec: &Vec<(f64, f64)>) -> Option<(f64, f64)> {
+    vec.into_iter().fold(None, |acc, &(_, y)| {
+        Some(acc.map_or((y, y), |(acc_min, acc_max)| {
+            (y.min(acc_min), y.max(acc_max))
+        }))
+    })
 }
 
 enum Error {
@@ -273,9 +271,16 @@ impl Application {
                     // Filters all instances of f64::NAN from the vector
                     self.evaluation = vec.into_iter()
                         .filter(|&(_,a)| a.is_normal()).collect();
-                    let (start_y, end_y) = determine_y_bounds(&self.evaluation);
-                    self.start_y = start_y;
-                    self.end_y = end_y;
+                    let (start_y, end_y) =
+                        determine_y_bounds(&self.evaluation).unwrap_or((0.0, 0.0));
+                    if start_y == end_y {
+                        let end_y_abs = end_y.abs();
+                        self.start_y = -end_y_abs;
+                        self.end_y = end_y_abs;
+                    } else {
+                        self.start_y = start_y;
+                        self.end_y = end_y;
+                    }
                 },
                 Err(_) => {
                     self.evaluation = Vec::new();
