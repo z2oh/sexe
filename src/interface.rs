@@ -273,8 +273,14 @@ impl Application {
                         .filter(|&(_,a)| a.is_normal()).collect();
                     let (start_y, end_y) =
                         determine_y_bounds(&self.evaluation).unwrap_or((0.0, 0.0));
-                    self.start_y = start_y;
-                    self.end_y = end_y;
+                    if start_y == end_y {
+                        let end_y_abs = end_y.abs();
+                        self.start_y = -end_y_abs;
+                        self.end_y = end_y_abs;
+                    } else {
+                        self.start_y = start_y;
+                        self.end_y = end_y;
+                    }
                 },
                 Err(_) => {
                     self.evaluation = Vec::new();
