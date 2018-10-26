@@ -249,6 +249,30 @@ impl Application {
         terminal.hide_cursor().unwrap();
 
         let mut term_size = terminal.size().unwrap();
+        self.resolution = (term_size.width * 3).into();
+
+        match self.plot_function() {
+            Ok(vec) => {
+                // Filters all instances of f64::NAN from the vector
+                self.evaluation = vec.into_iter()
+                    .filter(|&(_,a)| a.is_normal()).collect();
+                let (start_y, end_y) =
+                    determine_y_bounds(&self.evaluation).unwrap_or((0.0, 0.0));
+                if start_y == end_y {
+                    let end_y_abs = end_y.abs();
+                    self.start_y = -end_y_abs;
+                    self.end_y = end_y_abs;
+                } else {
+                    self.start_y = start_y;
+                    self.end_y = end_y;
+                }
+            },
+            Err(_) => {
+                self.evaluation = Vec::new();
+                self.start_y = 0.0;
+                self.end_y = 0.0;
+            },
+        }
 
         self.draw(&mut terminal, &term_size);
 
@@ -257,6 +281,7 @@ impl Application {
             if term_size != size {
                 terminal.resize(size).unwrap();
                 term_size = size;
+                self.resolution = (term_size.width * 3).into();
             }
             let evt = c.unwrap();
 
