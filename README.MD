@@ -1,7 +1,8 @@
 # (s)imple (ex)pression (e)valuator
+[![Build Status](https://travis-ci.org/z2oh/sexe.svg?branch=master)](https://travis-ci.org/z2oh/sexe)
 
 <center>
-    <img src="demo.png">
+    <img src="demo.png" alt="Thanks to Michael Gottlieb for this neat looking function! mzrg.com/">
 </center>
 
 There are three components to this project:
@@ -10,20 +11,7 @@ There are three components to this project:
 - A parser to parse human written expressions into an expression model that can be evaluated ([src/parser.rs](src/parser.rs))
 - A graphing interface for the terminal, to graph functions across some domain ([src/interface.rs](src/interface.rs))
 
-Currently, the operators are implemented:
-* Addition
-* Subtraction
-* Multiplication
-* Division
-* Sin
-* Cos
-* Tan
-* Abs
-* Log2
-* Ln
-* Negation
-
-Want to add a new function/operator? Make an issue or PR!
+There is a variety of supported syntax when writing functions. Is something missing? Make an issue or PR!
 
 ## Installation
 

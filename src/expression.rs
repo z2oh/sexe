@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 /// These are the supported binary operators.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum BinaryOperator {
     /// Addition: `+`
     Addition,
@@ -16,7 +16,7 @@ pub enum BinaryOperator {
 }
 
 /// These are the supported unary operators.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UnaryOperator {
     /// Sin: `sin()`
     Sin,
@@ -43,7 +43,7 @@ pub enum UnaryOperator {
 }
 
 /// These are the supported N-ary operators.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum NaryOperator {
     /// Log: `log(base, x)`
     Log,
@@ -51,7 +51,7 @@ pub enum NaryOperator {
 
 /// An expression node is any part of the parsed expression tree. These build up the expression
 /// recursively. Every value, variable, and operator is wrapped in an `ExpressionNode`.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ExpressionNode {
     /// This variant holds an operator that is to be applied to the evaluated values of its left
     /// and right subtrees of the expression.
@@ -78,7 +78,7 @@ pub enum ExpressionNode {
     ConstantExprNode { value: f64 },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum EvaluationError {
     VariableNotFoundError,
     WrongNumberOfArgsError,
