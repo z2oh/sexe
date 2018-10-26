@@ -332,347 +332,123 @@ named!(parse_priority_4<CompleteStr, ExpressionNode>,
     )
 );
 
-#[test]
-fn test_parse_constant() {
+#[cfg(test)]
+mod test {
+    use super::*;
     use std::collections::HashMap;
-    assert_eq!(
-        parse_constant(CompleteStr("3"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        3.0
-    );
 
-    let mut vars_map = HashMap::new();
-    vars_map.insert("x".to_string(), 10.0);
+    macro_rules! eval_test {
+        // Use the specified variable map.
+        ($inp:expr, $out:expr, $vars:expr) => {
+            assert_eq!(
+                parse_expr(CompleteStr($inp))
+                    .unwrap()
+                    .1
+                    .evaluate($vars)
+                    .unwrap(),
+                $out
+            );
+        };
+        // Assume an empty variable map.
+        ($inp:expr, $out:expr) => {
+            assert_eq!(
+                parse_expr(CompleteStr($inp))
+                    .unwrap()
+                    .1
+                    .evaluate(&HashMap::new())
+                    .unwrap(),
+                $out
+            );
+        };
+    }
 
-    assert_eq!(
-        parse_variable(CompleteStr("x"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        10.0
-    );
-}
+    macro_rules! error_test {
+        // Use the specified variable map.
+        ($inp:expr, $err:expr, $vars:expr) => {
+            assert_eq!(
+                parse_expr(CompleteStr($inp))
+                    .unwrap()
+                    .1
+                    .evaluate($vars)
+                    .err()
+                    .unwrap(),
+                $err
+            );
+        };
+        // Assume an empty variable map.
+        ($inp:expr, $err:expr) => {
+            assert_eq!(
+                parse_expr(CompleteStr($inp))
+                    .unwrap()
+                    .1
+                    .evaluate(&HashMap::new())
+                    .err()
+                    .unwrap(),
+                $err
+            );
+        };
+    }
 
-#[test]
-fn test_parse_term() {
-    use std::collections::HashMap;
-    let mut vars_map = HashMap::new();
-    vars_map.insert("x".to_string(), 10.0);
+    #[test]
+    fn trivial_expressions() {
+        let mut vars_map = HashMap::new();
+        vars_map.insert("x".to_string(), 10.0);
 
-    assert_eq!(
-        parse_expr(CompleteStr("(3(3))"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        9.0
-    );
+        eval_test!("3", 3.0);
+        eval_test!("x", 10.0, &vars_map);
+    }
 
-    assert_eq!(
-        parse_expr(CompleteStr("3x"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        30.0
-    );
+    #[test]
+    fn constant_expression() {
+        // Constant expression parsing
+        eval_test!("(3(3))", 9.0);
+        eval_test!("3(3(3))", 27.0);
+        eval_test!("3+10", 13.0);
+        eval_test!("3-(2+1)", 0.0);
+        eval_test!("3-(2-1)", 2.0);
+        eval_test!("3-(2-3+1)+(4-1+4)", 10.0);
+        eval_test!("3+2+2-8+1-3", -3.0);
+        eval_test!("3-4-5-6", -12.0);
+        eval_test!("2*2/(5-1)+3", 4.0);
+        eval_test!("2/2/(5-1)*3", 0.75);
+        eval_test!("-4*4", -16.0);
+        eval_test!("3*(-3)", -9.0);
+    }
 
-    assert_eq!(
-        parse_expr(CompleteStr("3(3(3))"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        27.0
-    );
+    #[test]
+    fn variable_expressions() {
+        let mut vars_map = HashMap::new();
+        vars_map.insert("x".to_string(), 10.0);
 
-    assert_eq!(
-        parse_expr(CompleteStr("3(x(3))"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        90.0
-    );
+        eval_test!("3(x(3))", 90.0, &vars_map);
+        eval_test!("3x", 30.0, &vars_map);
+        eval_test!("-x*sin(0)", 0.0, &vars_map);
+        eval_test!("3^3", 27.0, &vars_map);
+        eval_test!("2^3", 8.0, &vars_map);
+        eval_test!("3^2", 9.0, &vars_map);
+        eval_test!("3^(-3)", 1.0 / 27.0, &vars_map);
+        eval_test!("(((2(4)))))", 8.0, &vars_map);
+        eval_test!("-2^4", -16.0, &vars_map);
+        eval_test!("(-2)^4", 16.0, &vars_map);
+        eval_test!("exp(0)", 1.0, &vars_map);
+        eval_test!("log2(2)", 1.0, &vars_map);
+        eval_test!("log2(8)", 3.0, &vars_map);
+        eval_test!("log(9,3)", 2.0, &vars_map);
+        eval_test!("3 -   (2  -  3 + 1   ) + (  4 - 1    +4 )", 10.0, &vars_map);
+        eval_test!("ln(e)", 1.0, &vars_map);
+        eval_test!("sin (   0   )", 0.0, &vars_map);
+        eval_test!("sin (   0 * pi  )", 0.0, &vars_map);
+        eval_test!("log( 9 , 3)", 2.0, &vars_map);
+    }
 
-    assert_eq!(
-        parse_expr(CompleteStr("3+10"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        13.0,
-    );
+    #[test]
+    fn error_tests() {
+        let mut vars_map = HashMap::new();
+        vars_map.insert("x".to_string(), 10.0);
+        vars_map.insert("foo".to_string(), 10.0);
 
-    assert_eq!(
-        parse_expr(CompleteStr("3-(2+1)"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        0.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3-(2-1)"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        2.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3-(2-3+1)+(4-1+4)"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        10.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3+2+2-8+1-3"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        -3.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3-4-5-6"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        -12.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("2*2/(5-1)+3"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        4.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("2/2/(5-1)*3"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        0.75,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("-4*4"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        -16.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3*(-3)"))
-            .unwrap()
-            .1
-            .evaluate(&HashMap::new())
-            .unwrap(),
-        -9.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("-x*sin(0)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        0.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3^3"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        27.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("2^3"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        8.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3^2"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        9.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3^(-3)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        1.0 / 27.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("(((2(4)))))"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        8.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("-2^4"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        -16.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("(-2)^4"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        16.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("exp(0)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        1.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("log2(2)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        1.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("log2(8)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        3.0,
-    );
-
-    let x = parse_expr(CompleteStr("log(3,9,5)")).unwrap().1.evaluate(&vars_map);
-    let _test_err = match x {
-        Err(EvaluationError::WrongNumberOfArgsError) => "discard",
-        e => panic!("expected WrongNumberOfArgsError, found {:?}", e),
-    };
-
-    assert_eq!(
-        parse_expr(CompleteStr("log(9,3)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        2.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("3 -   (2  -  3 + 1   ) + (  4 - 1    +4 )"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        10.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("ln(e)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        1.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("sin (   0   )"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        0.0,
-    );
-
-    assert_eq!(
-        parse_expr(CompleteStr("sin (   0 * pi  )"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        0.0,
-    );
-
-    let x = parse_expr(CompleteStr("si n ( 0 )")).unwrap().1.evaluate(&vars_map);
-    let _test_err = match x {
-        Err(_) => "discard",
-        e => panic!("expected Err, found {:?}", e),
-    };
-
-    assert_eq!(
-        parse_expr(CompleteStr("log( 9 , 3)"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        2.0,
-    );
-
-    let x = parse_expr(CompleteStr("log(3,    9   ,5 )")).unwrap().1.evaluate(&vars_map);
-    let _test_err = match x {
-        Err(EvaluationError::WrongNumberOfArgsError) => "discard",
-        e => panic!("expected WrongNumberOfArgsError, found {:?}", e),
-    };
-
-    vars_map.insert("foo".to_string(), 10.0);
-
-    assert_eq!(
-        parse_expr(CompleteStr("foo"))
-            .unwrap()
-            .1
-            .evaluate(&vars_map)
-            .unwrap(),
-        10.0,
-    );
-    let x = parse_expr(CompleteStr("fo o")).unwrap().1.evaluate(&vars_map);
-    let _test_err = match x {
-        Err(EvaluationError::VariableNotFoundError) => "discard",
-        e => panic!("expected VariableNotFoundError, found {:?}", e),
-    };
+        error_test!("log(3,9,5)", EvaluationError::WrongNumberOfArgsError);
+        error_test!("log(3,    9   ,5)", EvaluationError::WrongNumberOfArgsError);
+        error_test!("y", EvaluationError::VariableNotFoundError, &vars_map);
+    }
 }
