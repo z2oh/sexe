@@ -451,4 +451,5 @@ mod test {
         error_test!("log(3,    9   ,5)", EvaluationError::WrongNumberOfArgsError);
         error_test!("y", EvaluationError::VariableNotFoundError, &vars_map);
     }
+
 }
