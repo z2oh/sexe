@@ -398,4 +398,53 @@ pub fn display() {
     };
     application.start();
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate test;
+    use self::test::Bencher;
 
+    #[bench]
+    fn single_variable_100res(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 100, "x")
+        });
+    }
+
+    #[bench]
+    fn sine_expression_100res(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 100, "sin(x)")
+        });
+    }
+
+    #[bench]
+    fn complicated_expression_100res(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 100, "|sin(x^x) / 2^((x^x - pi/2)/pi)|")
+        });
+    }
+
+    #[bench]
+    fn single_variable_amillires(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 1000000, "x")
+        });
+    }
+
+    #[bench]
+    fn sine_expression_amillires(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 1000000, "sin(x)")
+        });
+    }
+
+    #[bench]
+    fn complicated_expression_amillires(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 1000000, "|sin(x^x) / 2^((x^x - pi/2)/pi)|")
+        });
+    }
+
+
+}
