@@ -179,11 +179,13 @@ impl Application {
             event::Key::Esc => {
                 self.focused = false;
             },
-            // Otherwise we modify focus and hand off input to the children.
+            // Otherwise we potentially modify focus and hand off input to the children.
             _ => {
-                self.focused = true;
                 match self.selected_box {
-                SelectedBox::Function => self.function_input.process_input(&key),
+                SelectedBox::Function => {
+                    self.focused = true;
+                    self.function_input.process_input(&key)
+                },
                 SelectedBox::StartX => self.start_x_input.process_input(&key),
                 SelectedBox::EndX => self.end_x_input.process_input(&key),
             }},
