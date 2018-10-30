@@ -5,13 +5,15 @@
     <img src="demo.png" alt="Thanks to Michael Gottlieb for this neat looking function! mzrg.com/">
 </center>
 
-There are three components to this project:
+There are three components in this project:
 
-- A system to model and evaluate arbitrary arithmetic expressions ([src/expression.rs](src/expression.rs))
-- A parser to parse human written expressions into an expression model that can be evaluated ([src/parser.rs](src/parser.rs))
-- A graphing interface for the terminal, to graph functions across some domain ([src/interface.rs](src/interface.rs))
+- An expression engine that models and evaluates arbitrary arithmetic expressions ([src/expression.rs](src/expression.rs)).
+- A parser to convert human written expressions into a model that can be evaluated with the expression engine ([src/parser.rs](src/parser.rs)).
+- A graphing interface for the terminal, to graph functions across a specified domain ([src/interface.rs](src/interface.rs)).
 
-There is a variety of supported syntax when writing functions. Is something missing? Make an issue or PR!
+There is a variety of supported syntax when writing functions. 
+
+Is something missing? Make an issue or PR!
 
 ## Installation
 
