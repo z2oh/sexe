@@ -174,4 +174,6 @@ mod tests {
 
         assert_eq!(complex_expression.evaluate(&vars_map).unwrap(), 12.0);
     }
+
+
 }

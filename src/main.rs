@@ -1,3 +1,4 @@
+#![feature(test)]
 #[macro_use]
 extern crate nom;
 extern crate termion;
@@ -8,6 +9,7 @@ use std::io;
 mod expression;
 mod parser;
 mod interface;
+
 
 fn main() {
     let should_display_interface = true;

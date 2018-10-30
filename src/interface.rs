@@ -24,6 +24,7 @@ enum SelectedBox {
 
 struct Application {
     selected_box: SelectedBox,
+    focused: bool,
     start_y: f64,
     end_y: f64,
     evaluation: Vec<(f64, f64)>,
@@ -35,6 +36,7 @@ struct Application {
 
 struct TextInput {
     string: String,
+    position: usize,
 }
 
 struct NumberInput {
@@ -85,12 +87,26 @@ impl Input for TextInput {
     fn process_input(&mut self, key: &event::Key) {
         match key {
             event::Key::Backspace => {
-                self.string.pop();
+                if self.position > 0 {
+                    self.string.remove(self.position-1);
+                    self.position-=1;
+                }
             },
             event::Key::Char(c) => {
-                self.string.push(*c);
+                self.string.insert(self.position, *c);
+                self.position+=1;
             },
-            _ => (),
+            event::Key::Left => {
+                if self.position > 0 {
+                    self.position-=1;
+                }
+            },
+            event::Key::Right => {
+                if self.position < self.string.len() {
+                    self.position+=1;
+                }
+            },
+            _ => {},
         };
     }
 }
@@ -148,24 +164,31 @@ impl Application {
             // A Ctrl-C produces an exit command for the application.
             event::Key::Ctrl('c') => return ApplicationOperation::Exit,
             // Left and right change the focused box.
-            event::Key::Left => {
+            event::Key::Left if !self.focused => {
                 self.selected_box = match self.selected_box {
                     SelectedBox::EndX => SelectedBox::StartX,
                     _ => SelectedBox::Function,
                 };
             },
-            event::Key::Right => {
+            event::Key::Right if !self.focused => {
                 self.selected_box = match self.selected_box {
                     SelectedBox::Function => SelectedBox::StartX,
                     _ => SelectedBox::EndX,
                 };
             },
-            // Otherwise we hand off input to the children.
-            _ => match self.selected_box {
-                SelectedBox::Function => self.function_input.process_input(&key),
+            event::Key::Esc => {
+                self.focused = false;
+            },
+            // Otherwise we potentially modify focus and hand off input to the children.
+            _ => {
+                match self.selected_box {
+                SelectedBox::Function => {
+                    self.focused = true;
+                    self.function_input.process_input(&key)
+                },
                 SelectedBox::StartX => self.start_x_input.process_input(&key),
                 SelectedBox::EndX => self.end_x_input.process_input(&key),
-            },
+            }},
         };
         ApplicationOperation::Noop
     }
@@ -189,7 +212,7 @@ impl Application {
                             )
                             .style(self.get_input_style(SelectedBox::Function))
                             .wrap(false)
-                            .text(&self.function_input.string)
+                            .text(&self.render_cursor(&self.function_input, self.focused))
                             .render(t, &chunks[0]);
                         Paragraph::default()
                             .block(
@@ -341,16 +364,27 @@ impl Application {
             Style::default().fg(Color::Gray)
         }
     }
+
+    fn render_cursor(&self, input: &TextInput, _focused: bool) -> String {
+        // Renders a rudimentary cursor
+        let mut cursor_input = input.string.clone();
+        if _focused {
+            cursor_input.insert(input.position, '|');
+        }
+        return cursor_input;
+    }
 }
 
 pub fn display() {
     let mut application = Application {
         selected_box: SelectedBox::Function,
+        focused: false,
         start_y: 0.0,
         end_y: 0.0,
         evaluation: Vec::new(),
         function_input: TextInput {
             string: String::from("sin(x)"),
+            position: 6, // Hard-coded as the length of the default string
         },
         start_x_input: NumberInput {
             display_string: String::from("+0"),
@@ -364,4 +398,53 @@ pub fn display() {
     };
     application.start();
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    extern crate test;
+    use self::test::Bencher;
 
+    #[bench]
+    fn single_variable_100res(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 100, "x")
+        });
+    }
+
+    #[bench]
+    fn sine_expression_100res(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 100, "sin(x)")
+        });
+    }
+
+    #[bench]
+    fn complicated_expression_100res(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 100, "|sin(x^x) / 2^((x^x - pi/2)/pi)|")
+        });
+    }
+
+    #[bench]
+    fn single_variable_amillires(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 1000000, "x")
+        });
+    }
+
+    #[bench]
+    fn sine_expression_amillires(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 1000000, "sin(x)")
+        });
+    }
+
+    #[bench]
+    fn complicated_expression_amillires(b: &mut Bencher) {
+        b.iter(|| {
+            evaluate_function_over_domain(0.0f64, 10.0f64, 1000000, "|sin(x^x) / 2^((x^x - pi/2)/pi)|")
+        });
+    }
+
+
+}
