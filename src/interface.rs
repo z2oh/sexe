@@ -1,7 +1,5 @@
 use io;
 
-use nom::types::CompleteStr;
-
 use termion::event;
 use termion::input::TermRead;
 
@@ -13,7 +11,7 @@ use tui::Terminal;
 
 use std::collections::HashMap;
 
-use parser;
+use sexe_parser as parser;
 
 #[derive(PartialEq, Eq)]
 enum SelectedBox {
@@ -121,7 +119,7 @@ fn evaluate_function_over_domain(
     let mut vars_map = HashMap::new();
     vars_map.insert("x".to_string(), start_x);
 
-    let func = match parser::parse_expr(CompleteStr(function_string)) {
+    let func = match parser::parse_expr(parser::CompleteStr(function_string)) {
         Ok((rem, func)) => {
             if rem.len() > 0 {
                 return Err(Error::ParseError);

@@ -4,8 +4,7 @@ version = "0.1.0"
 authors = ["Jeremy Day <jadaytime@gmail.com>"]
 
 [dependencies]
-sexe_expression = { version = "0.1.0", path = "sexe-expression" }
-nom     = "^4.1"
+sexe_parser = { version = "0.1.0", path = "sexe-parser" }
 termion = "^1.5"
 
 [dependencies.tui]

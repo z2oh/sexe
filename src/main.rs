@@ -1,13 +1,10 @@
-#[macro_use]
-extern crate nom;
-extern crate sexe_expression;
+extern crate sexe_parser;
 extern crate termion;
 extern crate tui;
 
 use std::io;
 
 mod interface;
-mod parser;
 
 fn main() {
     let should_display_interface = true;
