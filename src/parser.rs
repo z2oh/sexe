@@ -1,6 +1,6 @@
-use expression::*;
 use nom;
 use nom::types::CompleteStr;
+use sexe_expression::*;
 use std::f64::consts::{E, PI};
 
 // This is a custom implementation of nom::recognize_float that does not parse
@@ -212,7 +212,6 @@ named!(parse_modulus<CompleteStr, ExpressionNode>,
         })
     )
 );
-
 
 named!(pub parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)

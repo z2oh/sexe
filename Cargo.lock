@@ -75,16 +75,17 @@ name = "sexe"
 version = "0.1.0"
 dependencies = [
  "nom 4.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sexe_expression 0.1.0",
  "termion 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "tui 0.2.3 (git+https://github.com/z2oh/tui-rs/?rev=d5408ae193f948bdf1e7f981e697c0b33011ebfc)",
 ]
 
 [[package]]
-name = "sexe-expression"
+name = "sexe-parser"
 version = "0.1.0"
 
 [[package]]
-name = "sexe-parser"
+name = "sexe_expression"
 version = "0.1.0"
 
 [[package]]
