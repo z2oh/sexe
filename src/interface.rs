@@ -12,14 +12,38 @@ use tui::widgets::*;
 use tui::Terminal;
 
 use std::collections::HashMap;
+use std::default::Default;
 
 use parser;
+
+const FUNC_PLACEHOLDER: &str = "sin(x)";
+const START_X_PLACEHOLDER: &str = "+0";
+const END_X_PLACEHOLDER: &str = "+10";
 
 #[derive(PartialEq, Eq)]
 enum SelectedBox {
     Function,
     StartX,
     EndX,
+}
+
+impl SelectedBox {
+    fn next(&self) -> Self {
+        use self::SelectedBox::*;
+        match *self {
+            Function => StartX,
+            StartX => EndX,
+            EndX => Function,
+        }
+    }
+    fn previous(&self) -> Self {
+        use self::SelectedBox::*;
+        match *self {
+            Function => EndX,
+            EndX => StartX,
+            StartX => Function,
+        }
+    }
 }
 
 struct Application {
@@ -33,48 +57,113 @@ struct Application {
     end_x_input: NumberInput,
 }
 
+impl Default for Application {
+    fn default() -> Self {
+        Self {
+            selected_box: SelectedBox::Function,
+            start_y: 0.0,
+            end_y: 0.0,
+            evaluation: Vec::new(),
+            function_input: TextInput {
+                cursor: FUNC_PLACEHOLDER.len(),
+                string: String::from(FUNC_PLACEHOLDER),
+            },
+            start_x_input: NumberInput {
+                cursor: START_X_PLACEHOLDER.len(),
+                display_string: String::from(START_X_PLACEHOLDER),
+                number_value: 0.0,
+            },
+            end_x_input: NumberInput {
+                cursor: END_X_PLACEHOLDER.len(),
+                display_string: String::from(END_X_PLACEHOLDER),
+                number_value: 10.0,
+            },
+            resolution: 100,
+        }
+    }
+}
+
 struct TextInput {
+    cursor: usize,
     string: String,
 }
 
 struct NumberInput {
+    cursor: usize,
     display_string: String,
     number_value: f64,
 }
 
+enum Shifting {
+    Right,
+    Left,
+}
+
 trait Input {
     fn process_input(&mut self, key: &event::Key);
+    fn pop(&mut self);
+    fn put(&mut self, ch: char);
+    fn shift_cursor(&mut self, direction: Shifting);
+    fn build_for_output(&self, active: bool) -> String;
 }
 
 impl Input for NumberInput {
+    fn build_for_output(&self, active: bool) -> String {
+        if active {
+            let unwrap = |v, o| match v {
+                Some(v) => v,
+                None => o,
+            };
+            let behind = unwrap(self.display_string.get(..self.cursor), "");
+            let ahead = unwrap(self.display_string.get(self.cursor + 1..), "");
+            let under = unwrap(self.display_string.get(self.cursor..self.cursor + 1), " ");
+            // cursor: block
+            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
+        } else {
+            format!("{}", self.display_string)
+        }
+    }
+    fn pop(&mut self) {
+        // to disable an unary operator deletion
+        if self.cursor == 1 {
+            return;
+        } else if self.display_string.len() <= 2 {
+            self.display_string = String::from(START_X_PLACEHOLDER);
+            self.cursor = START_X_PLACEHOLDER.len() - 1;
+        } else {
+            self.cursor -= 1;
+            self.display_string.remove(self.cursor);
+        }
+    }
+    fn put(&mut self, ch: char) {
+        if ch != '.' && self.display_string == "+0" || self.display_string == "-0" {
+            self.display_string.pop();
+            self.display_string.push(ch);
+            self.cursor = self.display_string.len();
+        } else {
+            self.display_string.insert(self.cursor, ch);
+            self.cursor += 1;
+        }
+    }
+    fn shift_cursor(&mut self, direction: Shifting) {
+        use self::Shifting::*;
+        match direction {
+            Right => if self.cursor < self.display_string.len() {
+                self.cursor += 1;
+            },
+            // We must not set a cursor behind an unary operator +/-
+            Left => if self.cursor > 1 {
+                self.cursor -= 1;
+            },
+        };
+    }
     fn process_input(&mut self, key: &event::Key) {
         match key {
-            event::Key::Backspace => {
-                // Reset to placeholder if our string is too short.
-                if self.display_string.len() <= 2 {
-                    self.display_string = String::from("+0");
-                }
-                else {
-                    self.display_string.pop();
-                }
-            },
-            event::Key::Char(digit) if digit.is_ascii_digit() => {
-                if &self.display_string == "+0" || &self.display_string == "-0" {
-                    self.display_string.pop();
-                }
-                self.display_string.push(*digit);
-            },
-            event::Key::Char('+') => {
-                self.display_string.replace_range(..1, "+");
-            },
-            event::Key::Char('-') => {
-                self.display_string.replace_range(..1, "-");
-            },
-            event::Key::Char('.') => {
-                if !self.display_string.contains(".") {
-                    self.display_string.push('.');
-                }
-            },
+            event::Key::Backspace => self.pop(),
+            event::Key::Char(ch) if ch.is_ascii_digit() => self.put(*ch),
+            event::Key::Char('.') if !self.display_string.contains(".") => self.put('.'),
+            event::Key::Char('+') => self.display_string.replace_range(..1, "+"),
+            event::Key::Char('-') => self.display_string.replace_range(..1, "-"),
             _ => (),
         };
         self.number_value = self.display_string.parse().unwrap();
@@ -82,14 +171,53 @@ impl Input for NumberInput {
 }
 
 impl Input for TextInput {
+    fn build_for_output(&self, active: bool) -> String {
+        if active {
+            let unwrap = |v, o| match v {
+                Some(v) => v,
+                None => o,
+            };
+            let behind = unwrap(self.string.get(..self.cursor), "");
+            let ahead = unwrap(self.string.get(self.cursor + 1..), "");
+            let under = unwrap(self.string.get(self.cursor..self.cursor + 1), " ");
+            // cursor: block
+            format!("{}{{mod=invert {}}}{}", behind, under, ahead)
+        } else {
+            format!("{}", self.string)
+        }
+    }
+    fn pop(&mut self) {
+        if self.cursor != 0 {
+            self.cursor -= 1;
+            self.string.remove(self.cursor);
+        }
+    }
+    fn put(&mut self, ch: char) {
+        if ch != '\t' && ch != '\\' {
+            self.string.insert(self.cursor, ch);
+            self.cursor += 1;
+        }
+    }
+    fn shift_cursor(&mut self, direction: Shifting) {
+        use self::Shifting::*;
+        match direction {
+            Right => if self.cursor < self.string.len() {
+                self.cursor += 1;
+            },
+            Left => if self.cursor > 0 {
+                self.cursor -= 1;
+            },
+        };
+    }
     fn process_input(&mut self, key: &event::Key) {
         match key {
             event::Key::Backspace => {
-                self.string.pop();
-            },
-            event::Key::Char(c) => {
-                self.string.push(*c);
-            },
+                self.pop();
+            }
+            //only latin characters and digits
+            event::Key::Char(c) if c.is_ascii() => {
+                self.put(*c);
+            }
             _ => (),
         };
     }
@@ -113,7 +241,12 @@ enum Error {
     RangeError,
 }
 
-fn evaluate_function_over_domain(start_x: f64, end_x: f64, resolution: u32, function_string: &str) -> Result<Vec<(f64, f64)>, Error> {
+fn evaluate_function_over_domain(
+    start_x: f64,
+    end_x: f64,
+    resolution: u32,
+    function_string: &str,
+) -> Result<Vec<(f64, f64)>, Error> {
     let mut vars_map = HashMap::new();
     vars_map.insert("x".to_string(), start_x);
 
@@ -123,23 +256,25 @@ fn evaluate_function_over_domain(start_x: f64, end_x: f64, resolution: u32, func
                 return Err(Error::ParseError);
             }
             func
-        },
+        }
         Err(_) => {
             return Err(Error::ParseError);
-        },
+        }
     };
 
     let step_width = (end_x - start_x) / resolution as f64;
 
-    Ok((0..resolution).map(|x| start_x + (x as f64 * step_width)).filter_map(|x| {
-        if let Some(val) = vars_map.get_mut(&"x".to_string()) {
-            *val = x;
-        }
-        match func.evaluate(&vars_map) {
-            Ok(y) => Some((x, y)),
-            Err(_) => None,
-        }
-    }).collect())
+    Ok((0..resolution)
+        .map(|x| start_x + (x as f64 * step_width))
+        .filter_map(|x| {
+            if let Some(val) = vars_map.get_mut(&"x".to_string()) {
+                *val = x;
+            }
+            match func.evaluate(&vars_map) {
+                Ok(y) => Some((x, y)),
+                Err(_) => None,
+            }
+        }).collect())
 }
 
 impl Application {
@@ -148,18 +283,10 @@ impl Application {
             // A Ctrl-C produces an exit command for the application.
             event::Key::Ctrl('c') => return ApplicationOperation::Exit,
             // Left and right change the focused box.
-            event::Key::Left => {
-                self.selected_box = match self.selected_box {
-                    SelectedBox::EndX => SelectedBox::StartX,
-                    _ => SelectedBox::Function,
-                };
-            },
-            event::Key::Right => {
-                self.selected_box = match self.selected_box {
-                    SelectedBox::Function => SelectedBox::StartX,
-                    _ => SelectedBox::EndX,
-                };
-            },
+            event::Key::Down => self.selected_box = self.selected_box.previous(),
+            event::Key::Up => self.selected_box = self.selected_box.next(),
+            event::Key::Left => self.shift_cursor(Shifting::Left),
+            event::Key::Right => self.shift_cursor(Shifting::Right),
             // Otherwise we hand off input to the children.
             _ => match self.selected_box {
                 SelectedBox::Function => self.function_input.process_input(&key),
@@ -170,7 +297,17 @@ impl Application {
         ApplicationOperation::Noop
     }
 
+    fn shift_cursor(&mut self, dir: Shifting) {
+        use self::SelectedBox::*;
+        match self.selected_box {
+            Function => self.function_input.shift_cursor(dir),
+            StartX => self.start_x_input.shift_cursor(dir),
+            EndX => self.end_x_input.shift_cursor(dir),
+        }
+    }
+
     fn draw(&self, t: &mut Terminal<MouseBackend>, size: &Rect) {
+        use self::SelectedBox::*;
         Group::default()
             .direction(Direction::Vertical)
             .margin(1)
@@ -183,60 +320,66 @@ impl Application {
                         Paragraph::default()
                             .block(
                                 Block::default()
-                                .title("Function")
-                                .borders(Borders::ALL)
-                                .border_style(self.get_box_style(SelectedBox::Function))
-                            )
-                            .style(self.get_input_style(SelectedBox::Function))
-                            .wrap(false)
-                            .text(&self.function_input.string)
+                                    .title("Function")
+                                    .borders(Borders::ALL)
+                                    .border_style(self.get_box_style(SelectedBox::Function)),
+                            ).style(self.get_input_style(SelectedBox::Function))
+                            .text(
+                                &self
+                                    .function_input
+                                    .build_for_output(self.selected_box == Function),
+                            ).wrap(false)
                             .render(t, &chunks[0]);
                         Paragraph::default()
                             .block(
                                 Block::default()
-                                .title("Start X")
-                                .borders(Borders::ALL)
-                                .border_style(self.get_box_style(SelectedBox::StartX))
-                            )
-                            .style(self.get_input_style(SelectedBox::StartX))
+                                    .title("Start X")
+                                    .borders(Borders::ALL)
+                                    .border_style(self.get_box_style(SelectedBox::StartX)),
+                            ).style(self.get_input_style(SelectedBox::StartX))
                             .wrap(false)
-                            .text(&self.start_x_input.display_string)
-                            .render(t, &chunks[1]);
+                            .text(
+                                &self
+                                    .start_x_input
+                                    .build_for_output(self.selected_box == StartX),
+                            ).render(t, &chunks[1]);
                         Paragraph::default()
                             .block(
                                 Block::default()
-                                .title("End X")
-                                .borders(Borders::ALL)
-                                .border_style(self.get_box_style(SelectedBox::EndX))
-                            )
-                            .style(self.get_input_style(SelectedBox::EndX))
+                                    .title("End X")
+                                    .borders(Borders::ALL)
+                                    .border_style(self.get_box_style(SelectedBox::EndX)),
+                            ).style(self.get_input_style(SelectedBox::EndX))
                             .wrap(false)
-                            .text(&self.end_x_input.display_string)
+                            .text(&self.end_x_input.build_for_output(self.selected_box == EndX))
                             .render(t, &chunks[2]);
                     });
                 Chart::default()
                     .block(Block::default().title("Plot").borders(Borders::ALL))
-                    .x_axis(Axis::default()
-                        .title("X")
-                        .bounds([self.start_x_input.number_value, self.end_x_input.number_value])
-                        .labels(&[
+                    .x_axis(
+                        Axis::default()
+                            .title("X")
+                            .bounds([
+                                self.start_x_input.number_value,
+                                self.end_x_input.number_value,
+                            ]).labels(&[
                                 format!("{:.2}", self.start_x_input.number_value).as_str(),
                                 "0",
                                 format!("{:.2}", self.end_x_input.number_value).as_str(),
-                        ]))
-                    .y_axis(Axis::default()
-                        .title("Y")
-                        .bounds([self.start_y, self.end_y])
-                        .labels(&[
+                            ]),
+                    ).y_axis(
+                        Axis::default()
+                            .title("Y")
+                            .bounds([self.start_y, self.end_y])
+                            .labels(&[
                                 format!("{:.2}", self.start_y).as_str(),
                                 "0",
                                 format!("{:.2}", self.end_y).as_str(),
-                        ]))
-                    .datasets(&[Dataset::default()
-                                .marker(Marker::Braille)
-                                .style(Style::default().fg(Color::Magenta))
-                                .data(&self.evaluation)])
-                    .render(t, &chunks[1]);
+                            ]),
+                    ).datasets(&[Dataset::default()
+                        .marker(Marker::Braille)
+                        .style(Style::default().fg(Color::Magenta))
+                        .data(&self.evaluation)]).render(t, &chunks[1]);
             });
 
         t.draw().unwrap();
@@ -311,7 +454,7 @@ impl Application {
                     self.evaluation = Vec::new();
                     self.start_y = 0.0;
                     self.end_y = 0.0;
-                },
+                }
             }
 
             self.draw(&mut terminal, &term_size);
@@ -323,20 +466,24 @@ impl Application {
     fn plot_function(&mut self) -> Result<Vec<(f64, f64)>, Error> {
         if self.start_x_input.number_value >= self.end_x_input.number_value {
             Err(Error::RangeError)
-        }
-        else {
-            evaluate_function_over_domain(self.start_x_input.number_value, self.end_x_input.number_value, self.resolution, &self.function_input.string)
+        } else {
+            evaluate_function_over_domain(
+                self.start_x_input.number_value,
+                self.end_x_input.number_value,
+                self.resolution,
+                &self.function_input.string,
+            )
         }
     }
 
     fn get_input_style(&self, _selected: SelectedBox) -> Style {
         // leaving this method as a reference how to change the text of focused input
-        Style::default()
+        Style::default().fg(Color::LightGreen)
     }
 
     fn get_box_style(&self, selected: SelectedBox) -> Style {
         if selected == self.selected_box {
-            Style::default().fg(Color::Magenta) 
+            Style::default().fg(Color::Magenta)
         } else {
             Style::default().fg(Color::Gray)
         }
@@ -344,24 +491,6 @@ impl Application {
 }
 
 pub fn display() {
-    let mut application = Application {
-        selected_box: SelectedBox::Function,
-        start_y: 0.0,
-        end_y: 0.0,
-        evaluation: Vec::new(),
-        function_input: TextInput {
-            string: String::from("sin(x)"),
-        },
-        start_x_input: NumberInput {
-            display_string: String::from("+0"),
-            number_value: 0.0,
-        },
-        end_x_input: NumberInput {
-            display_string: String::from("+10"),
-            number_value: 10.0,
-        },
-        resolution: 100,
-    };
+    let mut application = Application::default();
     application.start();
 }
-
