@@ -10,3 +10,10 @@ termion = "^1.5"
 [dependencies.tui]
 git = "https://github.com/z2oh/tui-rs/"
 rev = "d5408ae193f948bdf1e7f981e697c0b33011ebfc"
+
+[workspace]
+members = [
+	"sexe-expression",
+	"sexe-parser",
+]
+
