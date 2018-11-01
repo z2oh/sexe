@@ -161,7 +161,7 @@ impl Input for NumberInput {
         match key {
             event::Key::Backspace => self.pop(),
             event::Key::Char(ch) if ch.is_ascii_digit() => self.put(*ch),
-            event::Key::Char('.') => self.put('.'),
+            event::Key::Char('.') if !self.display_string.contains(".") => self.put('.'),
             event::Key::Char('+') => self.display_string.replace_range(..1, "+"),
             event::Key::Char('-') => self.display_string.replace_range(..1, "-"),
             _ => (),
