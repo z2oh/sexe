@@ -148,6 +148,33 @@ impl ExpressionNode {
     }
 }
 
+pub fn evaluate_function_over_domain(
+    start_x: f64,
+    end_x: f64,
+    resolution: u32,
+    func: &ExpressionNode,
+) -> Vec<(f64, f64)> {
+    let mut vars_map = HashMap::new();
+    vars_map.insert("x".to_string(), start_x);
+
+    let step_width = (end_x - start_x) / resolution as f64;
+
+    (0..resolution)
+        .map(|x| start_x + (x as f64 * step_width))
+        .filter_map(|x| {
+            if let Some(val) = vars_map.get_mut(&"x".to_string()) {
+                *val = x;
+            }
+            match func.evaluate(&vars_map) {
+                Ok(y) => Some((x, y)),
+                // For now we simply omit any points that evaluated to an error.
+                Err(_) => None,
+            }
+        })
+        .collect()
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

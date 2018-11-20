@@ -9,9 +9,8 @@ use tui::style::{Color, Style};
 use tui::widgets::*;
 use tui::Terminal;
 
-use std::collections::HashMap;
-
 use sexe_parser as parser;
+use sexe_expression as expression;
 
 #[derive(PartialEq, Eq)]
 enum SelectedBox {
@@ -108,43 +107,6 @@ fn determine_y_bounds(vec: &Vec<(f64, f64)>) -> Option<(f64, f64)> {
 enum Error {
     ParseError,
     RangeError,
-}
-
-fn evaluate_function_over_domain(
-    start_x: f64,
-    end_x: f64,
-    resolution: u32,
-    function_string: &str,
-) -> Result<Vec<(f64, f64)>, Error> {
-    let mut vars_map = HashMap::new();
-    vars_map.insert("x".to_string(), start_x);
-
-    let func = match parser::parse_expr(parser::CompleteStr(function_string)) {
-        Ok((rem, func)) => {
-            if rem.len() > 0 {
-                return Err(Error::ParseError);
-            }
-            func
-        }
-        Err(_) => {
-            return Err(Error::ParseError);
-        }
-    };
-
-    let step_width = (end_x - start_x) / resolution as f64;
-
-    Ok((0..resolution)
-        .map(|x| start_x + (x as f64 * step_width))
-        .filter_map(|x| {
-            if let Some(val) = vars_map.get_mut(&"x".to_string()) {
-                *val = x;
-            }
-            match func.evaluate(&vars_map) {
-                Ok(y) => Some((x, y)),
-                Err(_) => None,
-            }
-        })
-        .collect())
 }
 
 impl Application {
@@ -333,12 +295,17 @@ impl Application {
         if self.start_x_input.number_value >= self.end_x_input.number_value {
             Err(Error::RangeError)
         } else {
-            evaluate_function_over_domain(
-                self.start_x_input.number_value,
-                self.end_x_input.number_value,
-                self.resolution,
-                &self.function_input.string,
-            )
+            if let Ok(func) = parser::parse(&self.function_input.string) {
+                Ok(expression::evaluate_function_over_domain(
+                    self.start_x_input.number_value,
+                    self.end_x_input.number_value,
+                    self.resolution,
+                    &func,
+                ))
+            }
+            else {
+                Err(Error::ParseError)
+            }
         }
     }
 

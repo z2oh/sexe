@@ -5,6 +5,7 @@ authors = ["Jeremy Day <jadaytime@gmail.com>"]
 
 [dependencies]
 sexe_parser = { version = "0.1.0", path = "sexe-parser" }
+sexe_expression = { version = "0.1.0", path = "sexe-expression" }
 termion = "^1.5"
 
 [dependencies.tui]

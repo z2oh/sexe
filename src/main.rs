@@ -1,4 +1,5 @@
 extern crate sexe_parser;
+extern crate sexe_expression;
 extern crate termion;
 extern crate tui;
 
