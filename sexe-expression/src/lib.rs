@@ -128,15 +128,17 @@ impl ExpressionNode {
                 operator,
                 child_nodes,
             } => {
-                let mut child_values: Vec<f64> = Vec::new();
-                for node in child_nodes.iter() {
-                    child_values.push(node.evaluate(&vars)?);
-                }
+                let child_values: Vec<f64> = child_nodes
+                                                .iter()
+                                                .map(|node| node.evaluate(&vars))
+                                                .collect::<Result<_,_>>()?;
                 match operator {
-                    NaryOperator::Log => match child_values.len() {
-                        2 => Ok(child_values[0].log(child_values[1])),
-                        _ => Err(EvaluationError::WrongNumberOfArgsError),
-                    },
+                    NaryOperator::Log => if let [a, b] = &child_values[..] {
+                            Ok(a.log(*b))
+                        }
+                        else {
+                            Err(EvaluationError::WrongNumberOfArgsError)
+                        },
                 }
             }
             ExpressionNode::VariableExprNode { variable_key } => match vars.get(variable_key) {
