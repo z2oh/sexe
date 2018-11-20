@@ -1,7 +1,5 @@
 use io;
 
-use nom::types::CompleteStr;
-
 use termion::event;
 use termion::input::TermRead;
 
@@ -11,9 +9,8 @@ use tui::style::{Color, Style};
 use tui::widgets::*;
 use tui::Terminal;
 
-use std::collections::HashMap;
-
-use parser;
+use sexe_parser as parser;
+use sexe_expression as expression;
 
 #[derive(PartialEq, Eq)]
 enum SelectedBox {
@@ -53,28 +50,27 @@ impl Input for NumberInput {
                 // Reset to placeholder if our string is too short.
                 if self.display_string.len() <= 2 {
                     self.display_string = String::from("+0");
-                }
-                else {
+                } else {
                     self.display_string.pop();
                 }
-            },
+            }
             event::Key::Char(digit) if digit.is_ascii_digit() => {
                 if &self.display_string == "+0" || &self.display_string == "-0" {
                     self.display_string.pop();
                 }
                 self.display_string.push(*digit);
-            },
+            }
             event::Key::Char('+') => {
                 self.display_string.replace_range(..1, "+");
-            },
+            }
             event::Key::Char('-') => {
                 self.display_string.replace_range(..1, "-");
-            },
+            }
             event::Key::Char('.') => {
                 if !self.display_string.contains(".") {
                     self.display_string.push('.');
                 }
-            },
+            }
             _ => (),
         };
         self.number_value = self.display_string.parse().unwrap();
@@ -86,10 +82,10 @@ impl Input for TextInput {
         match key {
             event::Key::Backspace => {
                 self.string.pop();
-            },
+            }
             event::Key::Char(c) => {
                 self.string.push(*c);
-            },
+            }
             _ => (),
         };
     }
@@ -113,35 +109,6 @@ enum Error {
     RangeError,
 }
 
-fn evaluate_function_over_domain(start_x: f64, end_x: f64, resolution: u32, function_string: &str) -> Result<Vec<(f64, f64)>, Error> {
-    let mut vars_map = HashMap::new();
-    vars_map.insert("x".to_string(), start_x);
-
-    let func = match parser::parse_expr(CompleteStr(function_string)) {
-        Ok((rem, func)) => {
-            if rem.len() > 0 {
-                return Err(Error::ParseError);
-            }
-            func
-        },
-        Err(_) => {
-            return Err(Error::ParseError);
-        },
-    };
-
-    let step_width = (end_x - start_x) / resolution as f64;
-
-    Ok((0..resolution).map(|x| start_x + (x as f64 * step_width)).filter_map(|x| {
-        if let Some(val) = vars_map.get_mut(&"x".to_string()) {
-            *val = x;
-        }
-        match func.evaluate(&vars_map) {
-            Ok(y) => Some((x, y)),
-            Err(_) => None,
-        }
-    }).collect())
-}
-
 impl Application {
     fn process_input(&mut self, key: &event::Key) -> ApplicationOperation {
         match key {
@@ -153,13 +120,13 @@ impl Application {
                     SelectedBox::EndX => SelectedBox::StartX,
                     _ => SelectedBox::Function,
                 };
-            },
+            }
             event::Key::Right => {
                 self.selected_box = match self.selected_box {
                     SelectedBox::Function => SelectedBox::StartX,
                     _ => SelectedBox::EndX,
                 };
-            },
+            }
             // Otherwise we hand off input to the children.
             _ => match self.selected_box {
                 SelectedBox::Function => self.function_input.process_input(&key),
@@ -183,9 +150,9 @@ impl Application {
                         Paragraph::default()
                             .block(
                                 Block::default()
-                                .title("Function")
-                                .borders(Borders::ALL)
-                                .border_style(self.get_box_style(SelectedBox::Function))
+                                    .title("Function")
+                                    .borders(Borders::ALL)
+                                    .border_style(self.get_box_style(SelectedBox::Function)),
                             )
                             .style(self.get_input_style(SelectedBox::Function))
                             .wrap(false)
@@ -194,9 +161,9 @@ impl Application {
                         Paragraph::default()
                             .block(
                                 Block::default()
-                                .title("Start X")
-                                .borders(Borders::ALL)
-                                .border_style(self.get_box_style(SelectedBox::StartX))
+                                    .title("Start X")
+                                    .borders(Borders::ALL)
+                                    .border_style(self.get_box_style(SelectedBox::StartX)),
                             )
                             .style(self.get_input_style(SelectedBox::StartX))
                             .wrap(false)
@@ -205,9 +172,9 @@ impl Application {
                         Paragraph::default()
                             .block(
                                 Block::default()
-                                .title("End X")
-                                .borders(Borders::ALL)
-                                .border_style(self.get_box_style(SelectedBox::EndX))
+                                    .title("End X")
+                                    .borders(Borders::ALL)
+                                    .border_style(self.get_box_style(SelectedBox::EndX)),
                             )
                             .style(self.get_input_style(SelectedBox::EndX))
                             .wrap(false)
@@ -216,26 +183,33 @@ impl Application {
                     });
                 Chart::default()
                     .block(Block::default().title("Plot").borders(Borders::ALL))
-                    .x_axis(Axis::default()
-                        .title("X")
-                        .bounds([self.start_x_input.number_value, self.end_x_input.number_value])
-                        .labels(&[
+                    .x_axis(
+                        Axis::default()
+                            .title("X")
+                            .bounds([
+                                self.start_x_input.number_value,
+                                self.end_x_input.number_value,
+                            ])
+                            .labels(&[
                                 format!("{:.2}", self.start_x_input.number_value).as_str(),
                                 "0",
                                 format!("{:.2}", self.end_x_input.number_value).as_str(),
-                        ]))
-                    .y_axis(Axis::default()
-                        .title("Y")
-                        .bounds([self.start_y, self.end_y])
-                        .labels(&[
+                            ]),
+                    )
+                    .y_axis(
+                        Axis::default()
+                            .title("Y")
+                            .bounds([self.start_y, self.end_y])
+                            .labels(&[
                                 format!("{:.2}", self.start_y).as_str(),
                                 "0",
                                 format!("{:.2}", self.end_y).as_str(),
-                        ]))
+                            ]),
+                    )
                     .datasets(&[Dataset::default()
-                                .marker(Marker::Braille)
-                                .style(Style::default().fg(Color::Magenta))
-                                .data(&self.evaluation)])
+                        .marker(Marker::Braille)
+                        .style(Style::default().fg(Color::Magenta))
+                        .data(&self.evaluation)])
                     .render(t, &chunks[1]);
             });
 
@@ -254,10 +228,8 @@ impl Application {
         match self.plot_function() {
             Ok(vec) => {
                 // Filters all instances of f64::NAN from the vector
-                self.evaluation = vec.into_iter()
-                    .filter(|&(_,a)| a.is_normal()).collect();
-                let (start_y, end_y) =
-                    determine_y_bounds(&self.evaluation).unwrap_or((0.0, 0.0));
+                self.evaluation = vec.into_iter().filter(|&(_, a)| a.is_normal()).collect();
+                let (start_y, end_y) = determine_y_bounds(&self.evaluation).unwrap_or((0.0, 0.0));
                 if start_y == end_y {
                     let end_y_abs = end_y.abs();
                     self.start_y = -end_y_abs;
@@ -266,12 +238,12 @@ impl Application {
                     self.start_y = start_y;
                     self.end_y = end_y;
                 }
-            },
+            }
             Err(_) => {
                 self.evaluation = Vec::new();
                 self.start_y = 0.0;
                 self.end_y = 0.0;
-            },
+            }
         }
 
         self.draw(&mut terminal, &term_size);
@@ -294,8 +266,7 @@ impl Application {
             match self.plot_function() {
                 Ok(vec) => {
                     // Filters all instances of f64::NAN from the vector
-                    self.evaluation = vec.into_iter()
-                        .filter(|&(_,a)| a.is_normal()).collect();
+                    self.evaluation = vec.into_iter().filter(|&(_, a)| a.is_normal()).collect();
                     let (start_y, end_y) =
                         determine_y_bounds(&self.evaluation).unwrap_or((0.0, 0.0));
                     if start_y == end_y {
@@ -306,12 +277,12 @@ impl Application {
                         self.start_y = start_y;
                         self.end_y = end_y;
                     }
-                },
+                }
                 Err(_) => {
                     self.evaluation = Vec::new();
                     self.start_y = 0.0;
                     self.end_y = 0.0;
-                },
+                }
             }
 
             self.draw(&mut terminal, &term_size);
@@ -323,9 +294,18 @@ impl Application {
     fn plot_function(&mut self) -> Result<Vec<(f64, f64)>, Error> {
         if self.start_x_input.number_value >= self.end_x_input.number_value {
             Err(Error::RangeError)
-        }
-        else {
-            evaluate_function_over_domain(self.start_x_input.number_value, self.end_x_input.number_value, self.resolution, &self.function_input.string)
+        } else {
+            if let Ok(func) = parser::parse(&self.function_input.string) {
+                Ok(expression::evaluate_function_over_domain(
+                    self.start_x_input.number_value,
+                    self.end_x_input.number_value,
+                    self.resolution,
+                    &func,
+                ))
+            }
+            else {
+                Err(Error::ParseError)
+            }
         }
     }
 
@@ -336,7 +316,7 @@ impl Application {
 
     fn get_box_style(&self, selected: SelectedBox) -> Style {
         if selected == self.selected_box {
-            Style::default().fg(Color::Magenta) 
+            Style::default().fg(Color::Magenta)
         } else {
             Style::default().fg(Color::Gray)
         }
@@ -364,4 +344,3 @@ pub fn display() {
     };
     application.start();
 }
-

@@ -1,6 +1,9 @@
-use expression::*;
-use nom;
+#[macro_use]
+extern crate nom;
+extern crate sexe_expression;
+
 use nom::types::CompleteStr;
+use sexe_expression::*;
 use std::f64::consts::{E, PI};
 
 // This is a custom implementation of nom::recognize_float that does not parse
@@ -213,8 +216,7 @@ named!(parse_modulus<CompleteStr, ExpressionNode>,
     )
 );
 
-
-named!(pub parse_expr<CompleteStr, ExpressionNode>,
+named!(parse_expr<CompleteStr, ExpressionNode>,
     call!(parse_priority_4)
 );
 
@@ -331,6 +333,21 @@ named!(parse_priority_4<CompleteStr, ExpressionNode>,
         (res)
     )
 );
+
+pub fn parse(function_string: &str) -> Result<ExpressionNode, ()> {
+    if let Ok((rem, func)) = parse_expr(CompleteStr(function_string)) {
+        // Make sure we consumed the entire input.
+        if rem.len() > 0 {
+            Err(())
+        }
+        else {
+            Ok(func)
+        }
+    }
+    else {
+        Err(())
+    }
+}
 
 #[cfg(test)]
 mod test {

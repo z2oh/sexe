@@ -1,12 +1,10 @@
-#[macro_use]
-extern crate nom;
+extern crate sexe_parser;
+extern crate sexe_expression;
 extern crate termion;
 extern crate tui;
 
 use std::io;
 
-mod expression;
-mod parser;
 mod interface;
 
 fn main() {
@@ -14,10 +12,8 @@ fn main() {
     if should_display_interface {
         // Display the interface and hand control over to `display` module.
         interface::display();
-    }
-    else {
+    } else {
         // Do nothing, eventually other options will be added.
         return;
     }
 }
-
