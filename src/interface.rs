@@ -46,6 +46,12 @@ trait Input {
 impl Input for NumberInput {
     fn process_input(&mut self, key: &event::Key) {
         match key {
+            event::Key::Up => {
+                self.display_string = format!("{:+}", self.number_value + 1.0).to_string();
+            }
+            event::Key::Down => {
+                self.display_string = format!("{:+}", self.number_value - 1.0).to_string();
+            }
             event::Key::Backspace => {
                 // Reset to placeholder if our string is too short.
                 if self.display_string.len() <= 2 {
