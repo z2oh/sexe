@@ -2,15 +2,13 @@
 name = "sexe"
 version = "0.1.0"
 authors = ["Jeremy Day <jadaytime@gmail.com>"]
+edition = "2015"
 
 [dependencies]
 sexe_parser = { version = "0.1.0", path = "sexe-parser" }
 sexe_expression = { version = "0.1.0", path = "sexe-expression" }
 termion = "^1.5"
-
-[dependencies.tui]
-git = "https://github.com/z2oh/tui-rs/"
-rev = "d5408ae193f948bdf1e7f981e697c0b33011ebfc"
+tui = "^0.5"
 
 [workspace]
 members = [

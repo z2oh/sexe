@@ -2,15 +2,17 @@ use io;
 
 use termion::event;
 use termion::input::TermRead;
+use termion::raw::{IntoRawMode, RawTerminal};
 
-use tui::backend::MouseBackend;
-use tui::layout::{Direction, Group, Rect, Size};
+use tui::backend::TermionBackend;
+use tui::layout::*;
 use tui::style::{Color, Style};
+use tui::terminal::Frame;
 use tui::widgets::*;
 use tui::Terminal;
 
-use sexe_parser as parser;
 use sexe_expression as expression;
+use sexe_parser as parser;
 
 #[derive(PartialEq, Eq)]
 enum SelectedBox {
@@ -143,88 +145,101 @@ impl Application {
         ApplicationOperation::Noop
     }
 
-    fn draw(&self, t: &mut Terminal<MouseBackend>, size: &Rect) {
-        Group::default()
-            .direction(Direction::Vertical)
-            .margin(1)
-            .sizes(&[Size::Min(3), Size::Percent(100)])
-            .render(t, size, |t, chunks| {
-                Group::default()
-                    .direction(Direction::Horizontal)
-                    .sizes(&[Size::Percent(60), Size::Percent(20), Size::Percent(20)])
-                    .render(t, &chunks[0], |t, chunks| {
-                        Paragraph::default()
-                            .block(
-                                Block::default()
-                                    .title("Function")
-                                    .borders(Borders::ALL)
-                                    .border_style(self.get_box_style(SelectedBox::Function)),
-                            )
-                            .style(self.get_input_style(SelectedBox::Function))
-                            .wrap(false)
-                            .text(&self.function_input.string)
-                            .render(t, &chunks[0]);
-                        Paragraph::default()
-                            .block(
-                                Block::default()
-                                    .title("Start X")
-                                    .borders(Borders::ALL)
-                                    .border_style(self.get_box_style(SelectedBox::StartX)),
-                            )
-                            .style(self.get_input_style(SelectedBox::StartX))
-                            .wrap(false)
-                            .text(&self.start_x_input.display_string)
-                            .render(t, &chunks[1]);
-                        Paragraph::default()
-                            .block(
-                                Block::default()
-                                    .title("End X")
-                                    .borders(Borders::ALL)
-                                    .border_style(self.get_box_style(SelectedBox::EndX)),
-                            )
-                            .style(self.get_input_style(SelectedBox::EndX))
-                            .wrap(false)
-                            .text(&self.end_x_input.display_string)
-                            .render(t, &chunks[2]);
-                    });
-                Chart::default()
-                    .block(Block::default().title("Plot").borders(Borders::ALL))
-                    .x_axis(
-                        Axis::default()
-                            .title("X")
-                            .bounds([
-                                self.start_x_input.number_value,
-                                self.end_x_input.number_value,
-                            ])
-                            .labels(&[
-                                format!("{:.2}", self.start_x_input.number_value).as_str(),
-                                "0",
-                                format!("{:.2}", self.end_x_input.number_value).as_str(),
-                            ]),
-                    )
-                    .y_axis(
-                        Axis::default()
-                            .title("Y")
-                            .bounds([self.start_y, self.end_y])
-                            .labels(&[
-                                format!("{:.2}", self.start_y).as_str(),
-                                "0",
-                                format!("{:.2}", self.end_y).as_str(),
-                            ]),
-                    )
-                    .datasets(&[Dataset::default()
-                        .marker(Marker::Braille)
-                        .style(Style::default().fg(Color::Magenta))
-                        .data(&self.evaluation)])
-                    .render(t, &chunks[1]);
-            });
+    fn draw(
+        &self,
+        t: &mut Terminal<TermionBackend<RawTerminal<io::Stdout>>>,
+    ) -> Result<(), io::Error> {
+        let f = |mut f: Frame<TermionBackend<RawTerminal<io::Stdout>>>| {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .margin(1)
+                .constraints(vec![Constraint::Min(3), Constraint::Percentage(100)])
+                .split(f.size());
 
-        t.draw().unwrap();
+            let input_section = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(vec![
+                    Constraint::Percentage(60),
+                    Constraint::Percentage(20),
+                    Constraint::Percentage(20),
+                ])
+                .direction(Direction::Horizontal)
+                .split(chunks[0]);
+
+            Paragraph::new([Text::raw(&self.function_input.string)].iter())
+                .block(
+                    Block::default()
+                        .title("Function")
+                        .borders(Borders::ALL)
+                        .border_style(self.get_box_style(SelectedBox::Function)),
+                )
+                .style(self.get_input_style(SelectedBox::Function))
+                .wrap(false)
+                .render(&mut f, input_section[0]);
+
+            Paragraph::new([Text::raw(&self.start_x_input.display_string)].iter())
+                .block(
+                    Block::default()
+                        .title("Start X")
+                        .borders(Borders::ALL)
+                        .border_style(self.get_box_style(SelectedBox::StartX)),
+                )
+                .style(self.get_input_style(SelectedBox::StartX))
+                .wrap(false)
+                .render(&mut f, input_section[1]);
+
+            Paragraph::new([Text::raw(&self.end_x_input.display_string)].iter())
+                .block(
+                    Block::default()
+                        .title("End X")
+                        .borders(Borders::ALL)
+                        .border_style(self.get_box_style(SelectedBox::EndX)),
+                )
+                .style(self.get_input_style(SelectedBox::EndX))
+                .wrap(false)
+                .render(&mut f, input_section[2]);
+
+            Chart::default()
+                .block(Block::default().title("Plot").borders(Borders::ALL))
+                .x_axis(
+                    Axis::default()
+                        .title("X")
+                        .bounds([
+                            self.start_x_input.number_value,
+                            self.end_x_input.number_value,
+                        ])
+                        .labels(&[
+                            format!("{:.2}", self.start_x_input.number_value).as_str(),
+                            "0",
+                            format!("{:.2}", self.end_x_input.number_value).as_str(),
+                        ]),
+                )
+                .y_axis(
+                    Axis::default()
+                        .title("Y")
+                        .bounds([self.start_y, self.end_y])
+                        .labels(&[
+                            format!("{:.2}", self.start_y).as_str(),
+                            "0",
+                            format!("{:.2}", self.end_y).as_str(),
+                        ]),
+                )
+                .datasets(&[Dataset::default()
+                    .marker(Marker::Braille)
+                    .style(Style::default().fg(Color::Magenta))
+                    .data(&self.evaluation)])
+                .render(&mut f, chunks[1]);
+        };
+
+        t.draw(f)
     }
 
-    fn start(&mut self) {
+    fn start(&mut self) -> Result<(), io::Error> {
+        let stdout = io::stdout().into_raw_mode()?;
+        let backend = TermionBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+
         let stdin = io::stdin();
-        let mut terminal = Terminal::new(MouseBackend::new().unwrap()).unwrap();
         terminal.clear().unwrap();
         terminal.hide_cursor().unwrap();
 
@@ -252,7 +267,7 @@ impl Application {
             }
         }
 
-        self.draw(&mut terminal, &term_size);
+        self.draw(&mut terminal)?;
 
         for c in stdin.keys() {
             let size = terminal.size().unwrap();
@@ -289,12 +304,13 @@ impl Application {
                     self.start_y = 0.0;
                     self.end_y = 0.0;
                 }
-            }
+            };
 
-            self.draw(&mut terminal, &term_size);
+            self.draw(&mut terminal)?;
         }
         terminal.clear().unwrap();
         terminal.show_cursor().unwrap();
+        Ok(())
     }
 
     fn plot_function(&mut self) -> Result<Vec<(f64, f64)>, Error> {
@@ -308,8 +324,7 @@ impl Application {
                     self.resolution,
                     &func,
                 ))
-            }
-            else {
+            } else {
                 Err(Error::ParseError)
             }
         }
@@ -329,7 +344,7 @@ impl Application {
     }
 }
 
-pub fn display() {
+pub fn display() -> Result<(), io::Error> {
     let mut application = Application {
         selected_box: SelectedBox::Function,
         start_y: 0.0,
@@ -348,5 +363,5 @@ pub fn display() {
         },
         resolution: 100,
     };
-    application.start();
+    application.start()
 }
