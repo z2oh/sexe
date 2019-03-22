@@ -7,8 +7,8 @@
 
 There are three components in this project:
 
-- An expression engine that models and evaluates arbitrary arithmetic expressions ([src/expression.rs](src/expression.rs)).
-- A parser to convert human written expressions into a model that can be evaluated with the expression engine ([src/parser.rs](src/parser.rs)).
+- An expression engine that models and evaluates arbitrary arithmetic expressions ([sexe-expression](sexe-expression)).
+- A parser to convert human written expressions into a model that can be evaluated with the expression engine ([sexe-parser](sexe-parser)).
 - A graphing interface for the terminal, to graph functions across a specified domain ([src/interface.rs](src/interface.rs)).
 
 There is a variety of supported syntax when writing functions. 
