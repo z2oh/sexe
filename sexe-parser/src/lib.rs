@@ -21,6 +21,29 @@ named!(recognize_float<CompleteStr, CompleteStr>,
     )
 );
 
+/// Helper macro for defining simple unary functions to be invoked with function
+/// call like syntax (like `sin(x)`). The first argument is the name of the
+/// function, (e.g. `parse_sin`), the second argument is the UnaryOperator
+/// expression node type, (e.g. `UnaryOperator::Sin`), and then the remaining
+/// arguments are a comma separated list of different valid parse strings for
+/// this function (e.g. `"asin", "arcsin").
+macro_rules! def_unary_fn_parser {
+    ($name:ident, $op:expr, $($strs:expr),+) => (
+        named!($name<CompleteStr, ExpressionNode>,
+            do_parse!(
+                // N.B. We have `take!(0)` as a noop parser because nom does not
+                // allow for trailing `|` chars in `alt!` combinators.
+                alt!($(tag!($strs)|)+take!(0)) >>
+                res: parse_parens >>
+                (ExpressionNode::UnaryExprNode {
+                    operator: $op,
+                    child_node: Box::new(res),
+                })
+            )
+        );
+    );
+}
+
 named!(parse_double<CompleteStr, f64>,
     flat_map!(recognize_float, parse_to!(f64))
 );
@@ -55,93 +78,19 @@ named!(parse_parens<CompleteStr, ExpressionNode>,
     ws!(delimited!(char!('('), parse_expr, char!(')')))
 );
 
-named!(parse_sin<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("sin") >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Sin,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_cos<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("cos") >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Cos,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_tan<CompleteStr, ExpressionNode>,
-    do_parse!(
-        alt!(tag!("tan") | tag!("tg")) >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Tan,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_ctan<CompleteStr, ExpressionNode>,
-    do_parse!(
-        alt_complete!(tag!("ctan") | tag!("ctg")) >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Ctan,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_abs<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("abs") >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Abs,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_log2<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("log2") >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Log2,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_ln<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("ln") >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Ln,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_exp<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("exp") >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Exp,
-            child_node: Box::new(res),
-        })
-    )
-);
+def_unary_fn_parser!(parse_sin, UnaryOperator::Sin, "sin");
+def_unary_fn_parser!(parse_asin, UnaryOperator::Asin, "asin", "arcsin");
+def_unary_fn_parser!(parse_cos, UnaryOperator::Cos, "cos");
+def_unary_fn_parser!(parse_acos, UnaryOperator::Acos, "acos", "arccos");
+def_unary_fn_parser!(parse_tan, UnaryOperator::Tan, "tan", "tg");
+def_unary_fn_parser!(parse_ctan, UnaryOperator::Ctan, "ctan", "ctg");
+def_unary_fn_parser!(parse_abs, UnaryOperator::Abs, "abs");
+def_unary_fn_parser!(parse_log2, UnaryOperator::Log2, "log2");
+def_unary_fn_parser!(parse_log10, UnaryOperator::Log10, "log10");
+def_unary_fn_parser!(parse_ln, UnaryOperator::Ln, "ln");
+def_unary_fn_parser!(parse_exp, UnaryOperator::Exp, "exp");
+def_unary_fn_parser!(parse_ceil, UnaryOperator::Ceil, "ceil");
+def_unary_fn_parser!(parse_floor, UnaryOperator::Floor, "floor");
 
 named!(parse_args<CompleteStr, Vec<ExpressionNode>>,
     delimited!(char!('('), separated_list!(tag!(","), parse_expr), char!(')'))
@@ -158,55 +107,29 @@ named!(parse_log<CompleteStr, ExpressionNode>,
     )
 );
 
-named!(parse_acos<CompleteStr, ExpressionNode>,
-    do_parse!(
-        alt!(tag!("acos") | tag!("arccos")) >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Acos,
-            child_node: Box::new(res),
-        })
-    )
-);
-
-named!(parse_asin<CompleteStr, ExpressionNode>,
-    do_parse!(
-        alt!(tag!("asin") | tag!("arcsin")) >>
-        res: parse_parens >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Asin,
-            child_node: Box::new(res),
-        })
-    )
-);
-
 named!(parse_e<CompleteStr, ExpressionNode>,
     do_parse!(
-        beg: tag_no_case!("e") >>
-        rest: take_while!(|x: char| x.is_alphabetic())  >>
-        (
-            match rest.len() {
-                0 => ExpressionNode::ConstantExprNode { value: E },
-                _ => ExpressionNode::VariableExprNode { variable_key: format!("{}{}", beg, rest) }
-            }
-        )
+        tag_no_case!("e") >>
+        // TODO: Can we make this lazier (i.e. stop parsing after one character
+        // matches)?
+        // Ensure this constant is not followed by any other characters.
+        not!(call!(nom::alpha1)) >>
+        (ExpressionNode::ConstantExprNode { value: E, })
     )
 );
 
 named!(parse_pi<CompleteStr, ExpressionNode>,
     do_parse!(
-        beg: alt!(tag_no_case!("pi") | tag!("π")) >>
-        rest: take_while!(|x: char| x.is_alphabetic()) >>
-        (
-            match rest.len() {
-                0 => ExpressionNode::ConstantExprNode { value: PI },
-                _ => ExpressionNode::VariableExprNode { variable_key: format!("{}{}", beg, rest) }
-            }
-        )
+        alt!(tag_no_case!("pi") | tag!("π")) >>
+        // TODO: Can we make this lazier (i.e. stop parsing after one character
+        // matches)?
+        // Ensure this constant is not followed by any other characters.
+        not!(call!(nom::alpha1)) >>
+        (ExpressionNode::ConstantExprNode { value: PI })
     )
 );
 
-named!(parse_modulus<CompleteStr, ExpressionNode>,
+named!(parse_abs_bar_syntax<CompleteStr, ExpressionNode>,
     do_parse!(
         res: delimited!(char!('|'), parse_expr, char!('|')) >>
         (ExpressionNode::UnaryExprNode {
@@ -221,23 +144,30 @@ named!(parse_expr<CompleteStr, ExpressionNode>,
 );
 
 named!(parse_priority_0<CompleteStr, ExpressionNode>,
+    // TODO: Figure out a way to avoid redefining these if a parser is already
+    // defined using the `def_unary_fn_parser!` macro?
     ws!(alt_complete!(
-        parse_constant   |
-        parse_parens     |
-        parse_sin        |
-        parse_cos        |
-        parse_tan        |
-        parse_ctan       |
-        parse_asin       |
-        parse_acos       |
-        parse_abs        |
-        parse_modulus    |
-        parse_log2       |
-        parse_ln         |
-        parse_exp        |
-        parse_log        |
-        parse_e          |
-        parse_pi         |
+        parse_constant       |
+        parse_parens         |
+        parse_sin            |
+        parse_asin           |
+        parse_cos            |
+        parse_acos           |
+        parse_tan            |
+        parse_ctan           |
+        parse_abs            |
+        parse_exp            |
+        parse_log2           |
+        parse_log10          |
+        parse_ln             |
+        parse_ceil           |
+        parse_floor          |
+        parse_abs_bar_syntax |
+        parse_log            |
+        // N.B. These must go after the other parsers, or e.g. parse_e will
+        // match `exp(x)`.
+        parse_e              |
+        parse_pi             |
         parse_variable
     ))
 );

@@ -18,10 +18,16 @@ pub enum BinaryOperator {
 /// These are the supported unary operators.
 #[derive(Debug, PartialEq)]
 pub enum UnaryOperator {
+    /// Negation: `-`, as in `-4`
+    Negation,
     /// Sin: `sin()`
     Sin,
+    /// Asin: `asin()`
+    Asin,
     /// Cos: `cos()`
     Cos,
+    /// Acos: `acos()`
+    Acos,
     /// Tan: `tan()`
     Tan,
     /// Ctan `1.0 / tan()`
@@ -32,14 +38,14 @@ pub enum UnaryOperator {
     Exp,
     /// Log2: `log2()`
     Log2,
+    /// Log10: `log10()`
+    Log10,
     /// Ln: `ln()`
     Ln,
-    /// Negation: `-`, as in `-4`
-    Negation,
-    /// Asin: `asin()`
-    Asin,
-    /// Acos: `acos()`
-    Acos,
+    /// Ceil: `floor()`
+    Ceil,
+    /// Floor: `floor()`
+    Floor,
 }
 
 /// These are the supported N-ary operators.
@@ -111,17 +117,20 @@ impl ExpressionNode {
             } => {
                 let child_value = child_node.evaluate(&vars)?;
                 match operator {
+                    UnaryOperator::Negation => Ok(-child_value),
                     UnaryOperator::Sin => Ok(child_value.sin()),
+                    UnaryOperator::Asin => Ok(child_value.asin()),
                     UnaryOperator::Cos => Ok(child_value.cos()),
+                    UnaryOperator::Acos => Ok(child_value.acos()),
                     UnaryOperator::Tan => Ok(child_value.tan()),
                     UnaryOperator::Ctan => Ok(1.0 / child_value.tan()),
-                    UnaryOperator::Negation => Ok(-child_value),
                     UnaryOperator::Abs => Ok(child_value.abs()),
                     UnaryOperator::Exp => Ok(child_value.exp()),
                     UnaryOperator::Log2 => Ok(child_value.log2()),
+                    UnaryOperator::Log10 => Ok(child_value.log10()),
                     UnaryOperator::Ln => Ok(child_value.ln()),
-                    UnaryOperator::Asin => Ok(child_value.asin()),
-                    UnaryOperator::Acos => Ok(child_value.acos()),
+                    UnaryOperator::Ceil => Ok(child_value.ceil()),
+                    UnaryOperator::Floor => Ok(child_value.floor()),
                 }
             }
             ExpressionNode::NaryExprNode {
