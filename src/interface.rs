@@ -2,7 +2,8 @@ use io;
 
 use termion::event;
 use termion::input::TermRead;
-use termion::raw::{IntoRawMode, RawTerminal};
+use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
 
 use tui::backend::TermionBackend;
 use tui::layout::*;
@@ -10,6 +11,7 @@ use tui::style::{Color, Style};
 use tui::terminal::Frame;
 use tui::widgets::*;
 use tui::Terminal;
+use tui::backend::Backend;
 
 use sexe_expression as expression;
 use sexe_parser as parser;
@@ -145,11 +147,8 @@ impl Application {
         ApplicationOperation::Noop
     }
 
-    fn draw(
-        &self,
-        t: &mut Terminal<TermionBackend<RawTerminal<io::Stdout>>>,
-    ) -> Result<(), io::Error> {
-        let f = |mut f: Frame<TermionBackend<RawTerminal<io::Stdout>>>| {
+    fn draw<B: Backend>(&self, t: &mut Terminal<B>) -> Result<(), io::Error> {
+        let f = |mut f: Frame<B>| {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(1)
@@ -236,7 +235,8 @@ impl Application {
 
     fn start(&mut self) -> Result<(), io::Error> {
         let stdout = io::stdout().into_raw_mode()?;
-        let backend = TermionBackend::new(stdout);
+        let screen = AlternateScreen::from(stdout);
+        let backend = TermionBackend::new(screen);
         let mut terminal = Terminal::new(backend)?;
 
         let stdin = io::stdin();
