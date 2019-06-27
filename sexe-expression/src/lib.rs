@@ -150,7 +150,7 @@ impl ExpressionNode {
     }
 }
 
-pub fn evaluate_function_over_domain(
+pub fn evaluate(
     start_x: f64,
     end_x: f64,
     resolution: u32,

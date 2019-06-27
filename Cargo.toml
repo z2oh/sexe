@@ -8,7 +8,10 @@ edition = "2015"
 sexe_parser = { version = "0.1.0", path = "sexe-parser" }
 sexe_expression = { version = "0.1.0", path = "sexe-expression" }
 termion = "^1.5"
-tui = "^0.5"
+# When tui 0.6.2 is released (which will include a bugfix for a panic in the
+# canvas widget) we can stop depending on a # specific tui revision.
+# tui = "^0.6"
+tui = { git = "https://github.com/fdehau/tui-rs/", rev = "47c68e40a2ea98460a6a911083384694dbde7a10" }
 
 [workspace]
 members = [
