@@ -2,24 +2,22 @@
 extern crate nom;
 extern crate sexe_expression;
 
-use nom::types::CompleteStr;
-use sexe_expression::*;
 use std::f64::consts::{E, PI};
 
-// This is a custom implementation of nom::recognize_float that does not parse
-// the optional sign before the number, so that expressions like `x+3` parse
-// correctly and not as `x(+3)`.
-named!(recognize_float<CompleteStr, CompleteStr>,
-    recognize!(
-        tuple!(
-            alt!(
-                value!((), tuple!(nom::digit, opt!(pair!(char!('.'), opt!(nom::digit))))) |
-                value!((), tuple!(char!('.'), nom::digit))
-            ),
-            opt!(tuple!(alt!(char!('e') | char!('E')), nom::digit))
-        )
-    )
-);
+use nom::IResult;
+use nom::ParseTo;
+use nom::branch::alt;
+use nom::bytes::complete::{tag, tag_no_case};
+use nom::character::complete::{alpha1, char};
+use nom::combinator::not;
+use nom::multi::separated_list;
+use nom::sequence::{delimited, pair};
+
+use sexe_expression::*;
+
+mod custom_combinators;
+use crate::custom_combinators::{recognize_float, fold_many0_once};
+
 
 /// Helper macro for defining simple unary functions to be invoked with function
 /// call like syntax (like `sin(x)`). The first argument is the name of the
@@ -28,55 +26,60 @@ named!(recognize_float<CompleteStr, CompleteStr>,
 /// arguments are a comma separated list of different valid parse strings for
 /// this function (e.g. `"asin", "arcsin").
 macro_rules! def_unary_fn_parser {
+    // When only parse string is provided, we cannot use an alt combinator, so
+    // we parse the string directly with tag.
+    ($name:ident, $op:expr, $str:expr) => (
+        fn $name(i: &str) -> IResult<&str, ExpressionNode> {
+            let (i, _) = tag($str)(i)?;
+            let (i, res) = parse_parens(i)?;
+            Ok((i, ExpressionNode::UnaryExprNode {
+                operator: $op,
+                child_node: Box::new(res),
+            }))
+        }
+    );
+    // If multiple parse strings are provided, we wrap them in an alt
+    // combinator.
     ($name:ident, $op:expr, $($strs:expr),+) => (
-        named!($name<CompleteStr, ExpressionNode>,
-            do_parse!(
-                // N.B. We have `take!(0)` as a noop parser because nom does not
-                // allow for trailing `|` chars in `alt!` combinators.
-                alt!($(tag!($strs)|)+take!(0)) >>
-                res: parse_parens >>
-                (ExpressionNode::UnaryExprNode {
-                    operator: $op,
-                    child_node: Box::new(res),
-                })
-            )
-        );
+        fn $name(i: &str) -> IResult<&str, ExpressionNode> {
+            let (i, _) = alt(($(tag($strs),)+))(i)?;
+            let (i, res) = parse_parens(i)?;
+            Ok((i, ExpressionNode::UnaryExprNode {
+                operator: $op,
+                child_node: Box::new(res),
+            }))
+        }
     );
 }
 
-named!(parse_double<CompleteStr, f64>,
-    flat_map!(recognize_float, parse_to!(f64))
-);
+fn parse_double(i: &str) -> IResult<&str, f64> {
+    let (i, f) = recognize_float(i)?;
+    Ok((i, f.parse_to().unwrap()))
+}
 
-named!(parse_constant<CompleteStr, ExpressionNode>,
-    do_parse!(
-        value: parse_double >>
-        (ExpressionNode::ConstantExprNode { value, })
-    )
-);
+fn parse_constant(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, value) = parse_double(i)?;
+    Ok((i, ExpressionNode::ConstantExprNode { value, }))
+}
 
-named!(parse_variable<CompleteStr, ExpressionNode>,
-    do_parse!(
-        var: take_while1!(|x: char| x.is_alphabetic()) >>
-        (ExpressionNode::VariableExprNode { variable_key: var.to_string(), })
-    )
-);
+fn parse_variable(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, var) = alpha1(i)?;
+    Ok((i, ExpressionNode::VariableExprNode { variable_key: var.to_string(), }))
+}
 
-named!(parse_coefficient<CompleteStr, ExpressionNode>,
-    do_parse!(
-        coefficient: parse_priority_1 >>
-        res: parse_priority_1 >>
-        (ExpressionNode::BinaryExprNode {
-            operator: BinaryOperator::Multiplication,
-            left_node: Box::new(coefficient),
-            right_node: Box::new(res),
-        })
-    )
-);
+fn parse_coefficient(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, coefficient) = parse_priority_1(i)?;
+    let (i, res) = parse_priority_1(i)?;
+    Ok((i, ExpressionNode::BinaryExprNode {
+        operator: BinaryOperator::Multiplication,
+        left_node: Box::new(coefficient),
+        right_node: Box::new(res),
+    }))
+}
 
-named!(parse_parens<CompleteStr, ExpressionNode>,
-    ws!(delimited!(char!('('), parse_expr, char!(')')))
-);
+fn parse_parens(i: &str) -> IResult<&str, ExpressionNode> {
+    ws!(i, delimited(char('('), parse_expr, char(')')))
+}
 
 def_unary_fn_parser!(parse_sin, UnaryOperator::Sin, "sin");
 def_unary_fn_parser!(parse_asin, UnaryOperator::Asin, "asin", "arcsin");
@@ -92,180 +95,157 @@ def_unary_fn_parser!(parse_exp, UnaryOperator::Exp, "exp");
 def_unary_fn_parser!(parse_ceil, UnaryOperator::Ceil, "ceil");
 def_unary_fn_parser!(parse_floor, UnaryOperator::Floor, "floor");
 
-named!(parse_args<CompleteStr, Vec<ExpressionNode>>,
-    delimited!(char!('('), separated_list!(tag!(","), parse_expr), char!(')'))
-);
+fn parse_args(i: &str) -> IResult<&str, Vec<ExpressionNode>> {
+    //let (i, _) = char('(')(i)?;
+    //let (i, res) = separated_list(tag(","), parse_expr)(i)?;
+    //let (i, _) = char(')')(i)?;
+    //Ok((i, res))
+    delimited(char('('), separated_list(tag(","), parse_expr), char(')'))(i)
+}
 
-named!(parse_log<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag!("log") >>
-        res: parse_args >>
-        (ExpressionNode::NaryExprNode {
-            operator: NaryOperator::Log,
-            child_nodes: Box::new(res),
-        })
-    )
-);
+fn parse_log(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, _) = tag("log")(i)?;
+    let (i, res) = parse_args(i)?;
+    Ok((i, ExpressionNode::NaryExprNode {
+        operator: NaryOperator::Log,
+        child_nodes: Box::new(res),
+    }))
+}
 
-named!(parse_e<CompleteStr, ExpressionNode>,
-    do_parse!(
-        tag_no_case!("e") >>
-        // TODO: Can we make this lazier (i.e. stop parsing after one character
-        // matches)?
-        // Ensure this constant is not followed by any other characters.
-        not!(call!(nom::alpha1)) >>
-        (ExpressionNode::ConstantExprNode { value: E, })
-    )
-);
+fn parse_e(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, _) = alt((char('e'), char('E')))(i)?;
+    not(alpha1)(i)?;
+    Ok((i, ExpressionNode::ConstantExprNode { value: E, }))
+}
 
-named!(parse_pi<CompleteStr, ExpressionNode>,
-    do_parse!(
-        alt!(tag_no_case!("pi") | tag!("π")) >>
-        // TODO: Can we make this lazier (i.e. stop parsing after one character
-        // matches)?
-        // Ensure this constant is not followed by any other characters.
-        not!(call!(nom::alpha1)) >>
-        (ExpressionNode::ConstantExprNode { value: PI })
-    )
-);
+fn parse_pi(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, _) = alt((tag_no_case("pi"), tag("π")))(i)?;
+    not(alpha1)(i)?;
+    Ok((i, ExpressionNode::ConstantExprNode { value: PI, }))
+}
 
-named!(parse_abs_bar_syntax<CompleteStr, ExpressionNode>,
-    do_parse!(
-        res: delimited!(char!('|'), parse_expr, char!('|')) >>
-        (ExpressionNode::UnaryExprNode {
-            operator: UnaryOperator::Abs,
-            child_node: Box::new(res),
-        })
-    )
-);
+fn parse_abs_bar_syntax(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, res) = delimited(char('|'), parse_expr, char('|'))(i)?;
+    Ok((i, ExpressionNode::UnaryExprNode {
+        operator: UnaryOperator::Abs,
+        child_node: Box::new(res),
+    }))
+}
 
-named!(parse_expr<CompleteStr, ExpressionNode>,
-    call!(parse_priority_4)
-);
+fn parse_expr(i: &str) -> IResult<&str, ExpressionNode> {
+    parse_priority_4(i)
+}
 
-named!(parse_priority_0<CompleteStr, ExpressionNode>,
+fn parse_priority_0(i: &str) -> IResult<&str, ExpressionNode> {
     // TODO: Figure out a way to avoid redefining these if a parser is already
     // defined using the `def_unary_fn_parser!` macro?
-    ws!(alt_complete!(
-        parse_constant       |
-        parse_parens         |
-        parse_sin            |
-        parse_asin           |
-        parse_cos            |
-        parse_acos           |
-        parse_tan            |
-        parse_ctan           |
-        parse_abs            |
-        parse_exp            |
-        parse_log2           |
-        parse_log10          |
-        parse_ln             |
-        parse_ceil           |
-        parse_floor          |
-        parse_abs_bar_syntax |
-        parse_log            |
+    ws!(i, alt((
+        parse_constant,
+        parse_parens,
+        parse_sin,
+        parse_asin,
+        parse_cos,
+        parse_acos,
+        parse_tan,
+        parse_ctan,
+        parse_abs,
+        parse_exp,
+        parse_log2,
+        parse_log10,
+        parse_ln,
+        parse_ceil,
+        parse_floor,
+        parse_abs_bar_syntax,
+        parse_log,
         // N.B. These must go after the other parsers, or e.g. parse_e will
         // match `exp(x)`.
-        parse_e              |
-        parse_pi             |
+        parse_e,
+        parse_pi,
         parse_variable
-    ))
-);
+    )))
+}
 
-named!(parse_priority_1<CompleteStr, ExpressionNode>,
-    do_parse!(
-        init: parse_priority_0 >>
-        res: fold_many0!(
-            ws!(pair!(alt!(tag!("^")), parse_priority_0)),
-            init,
-            |acc, (op, val): (CompleteStr, ExpressionNode)| {
-                let operator = match op.as_bytes()[0] as char {
-                    '^' => BinaryOperator::Exponentiation,
-                    // For now, default to Exponentiation.
-                    _ => BinaryOperator::Exponentiation,
-                };
-                ExpressionNode::BinaryExprNode {
-                    operator,
-                    left_node: Box::new(acc),
-                    right_node: Box::new(val),
-                }
+fn parse_priority_1(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, init) = parse_priority_0(i)?;
+    fold_many0_once(
+        |i: &str| { ws!(i, pair(tag("^"), parse_priority_0)) },
+        init,
+        |acc, (op, val): (&str, ExpressionNode)| {
+            let operator = match op.as_bytes()[0] as char {
+                '^' => BinaryOperator::Exponentiation,
+                // For now, default to Exponentiation.
+                _ => BinaryOperator::Exponentiation,
+            };
+            ExpressionNode::BinaryExprNode {
+                operator,
+                left_node: Box::new(acc),
+                right_node: Box::new(val),
             }
-        ) >>
-        (res)
-    )
-);
+        }
+    )(i)
+}
 
-named!(parse_priority_2<CompleteStr, ExpressionNode>,
-    do_parse!(
-        init: alt!(
-            parse_coefficient |
-            parse_priority_1
-        ) >>
-        res: fold_many0!(
-            ws!(pair!(alt!(tag!("*") | tag!("/")), parse_priority_1)),
-            init,
-            |acc, (op, val): (CompleteStr, ExpressionNode)| {
-                let operator = match op.as_bytes()[0] as char {
-                    '*' => BinaryOperator::Multiplication,
-                    '/' => BinaryOperator::Division,
-                    // For now, default to Multiplication.
-                    _   => BinaryOperator::Multiplication,
-                };
-                ExpressionNode::BinaryExprNode {
-                    operator,
-                    left_node: Box::new(acc),
-                    right_node: Box::new(val),
-                }
+fn parse_priority_2(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, init) = alt((parse_coefficient, parse_priority_1))(i)?;
+    fold_many0_once(
+        |i: &str| { ws!(i, pair(alt((tag("*"), tag("/"))), parse_priority_1)) },
+        init,
+        |acc, (op, val): (&str, ExpressionNode)| {
+            let operator = match op.as_bytes()[0] as char {
+                '*' => BinaryOperator::Multiplication,
+                '/' => BinaryOperator::Division,
+                // For now, default to Multiplication.
+                _   => BinaryOperator::Multiplication,
+            };
+            ExpressionNode::BinaryExprNode {
+                operator,
+                left_node: Box::new(acc),
+                right_node: Box::new(val),
             }
-        ) >>
-        (res)
-    )
-);
+        }
+    )(i)
+}
 
-named!(parse_priority_3<CompleteStr, ExpressionNode>,
-    alt_complete!(
-        do_parse!(
-            op: alt!(tag!("-")) >>
-            res: parse_priority_2 >>
-            (ExpressionNode::UnaryExprNode {
-                operator: match op.as_bytes()[0] as char {
-                    '-' => UnaryOperator::Negation,
-                    // For now, default to Negation.
-                    _ => UnaryOperator::Negation,
-                },
-                child_node: Box::new(res),
-            })
-        ) |
-        parse_priority_2
-    )
-);
+fn parse_priority_3(i: &str) -> IResult<&str, ExpressionNode> {
+    fn _parse_priority_3_internal(i: &str) -> IResult<&str, ExpressionNode> {
+        let (i, op) = tag("-")(i)?;
+        let (i, res) = parse_priority_2(i)?;
+        Ok((i, ExpressionNode::UnaryExprNode {
+            operator: match op.as_bytes()[0] as char {
+                '-' => UnaryOperator::Negation,
+                // For now, default to Negation.
+                _ => UnaryOperator::Negation,
+            },
+            child_node: Box::new(res),
+        }))
+    }
 
-named!(parse_priority_4<CompleteStr, ExpressionNode>,
-    do_parse!(
-        init: parse_priority_3 >>
-        res: fold_many0!(
-            ws!(pair!(alt!(tag!("+") | tag!("-")), parse_priority_3)),
-            init,
-            |acc, (op, val): (CompleteStr, ExpressionNode)| {
-                let operator = match op.as_bytes()[0] as char {
-                    '+' => BinaryOperator::Addition,
-                    '-' => BinaryOperator::Subtraction,
-                    // For now, default to Addition.
-                    _   => BinaryOperator::Addition,
-                };
-                ExpressionNode::BinaryExprNode {
-                    operator,
-                    left_node: Box::new(acc),
-                    right_node: Box::new(val),
-                }
+    alt((_parse_priority_3_internal, parse_priority_2))(i)
+}
+
+fn parse_priority_4(i: &str) -> IResult<&str, ExpressionNode> {
+    let (i, init) = parse_priority_3(i)?;
+    fold_many0_once(
+        |i: &str| { ws!(i, pair(alt((tag("+"), tag("-"))), parse_priority_3)) },
+        init,
+        |acc, (op, val): (&str, ExpressionNode)| {
+            let operator = match op.as_bytes()[0] as char {
+                '+' => BinaryOperator::Addition,
+                '-' => BinaryOperator::Subtraction,
+                // For now, default to Addition.
+                _   => BinaryOperator::Addition,
+            };
+            ExpressionNode::BinaryExprNode {
+                operator,
+                left_node: Box::new(acc),
+                right_node: Box::new(val),
             }
-        ) >>
-        (res)
-    )
-);
+        }
+    )(i)
+}
 
 pub fn parse(function_string: &str) -> Result<ExpressionNode, ()> {
-    if let Ok((rem, func)) = parse_expr(CompleteStr(function_string)) {
+    if let Ok((rem, func)) = parse_expr(function_string) {
         // Make sure we consumed the entire input.
         if rem.len() > 0 {
             Err(())
@@ -288,7 +268,7 @@ mod test {
         // Use the specified variable map.
         ($inp:expr, $out:expr, $vars:expr) => {
             assert_eq!(
-                parse_expr(CompleteStr($inp))
+                parse_expr($inp)
                     .unwrap()
                     .1
                     .evaluate($vars)
@@ -299,7 +279,7 @@ mod test {
         // Assume an empty variable map.
         ($inp:expr, $out:expr) => {
             assert_eq!(
-                parse_expr(CompleteStr($inp))
+                parse_expr($inp)
                     .unwrap()
                     .1
                     .evaluate(&HashMap::new())
@@ -313,7 +293,7 @@ mod test {
         // Use the specified variable map.
         ($inp:expr, $err:expr, $vars:expr) => {
             assert_eq!(
-                parse_expr(CompleteStr($inp))
+                parse_expr($inp)
                     .unwrap()
                     .1
                     .evaluate($vars)
@@ -325,7 +305,7 @@ mod test {
         // Assume an empty variable map.
         ($inp:expr, $err:expr) => {
             assert_eq!(
-                parse_expr(CompleteStr($inp))
+                parse_expr($inp)
                     .unwrap()
                     .1
                     .evaluate(&HashMap::new())
@@ -380,7 +360,7 @@ mod test {
         eval_test!("exp(0)", 1.0, &vars_map);
         eval_test!("log2(2)", 1.0, &vars_map);
         eval_test!("log2(8)", 3.0, &vars_map);
-        eval_test!("log(9,3)", 2.0, &vars_map);
+        eval_test!("log(9,3)", 2.0);
         eval_test!("3 -   (2  -  3 + 1   ) + (  4 - 1    +4 )", 10.0, &vars_map);
         eval_test!("ln(e)", 1.0, &vars_map);
         eval_test!("sin (   0   )", 0.0, &vars_map);
