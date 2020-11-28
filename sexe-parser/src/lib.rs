@@ -1,4 +1,3 @@
-#[macro_use]
 extern crate nom;
 extern crate sexe_expression;
 
@@ -10,13 +9,13 @@ use nom::branch::alt;
 use nom::bytes::complete::{tag, tag_no_case};
 use nom::character::complete::{alpha1, char};
 use nom::combinator::not;
-use nom::multi::separated_list;
+use nom::multi::separated_list0;
 use nom::sequence::{delimited, pair};
 
 use sexe_expression::*;
 
 mod custom_combinators;
-use crate::custom_combinators::{recognize_float, fold_many0_once};
+use crate::custom_combinators::{recognize_float, fold_many0_once, ws};
 
 
 /// Helper macro for defining simple unary functions to be invoked with function
@@ -78,7 +77,7 @@ fn parse_coefficient(i: &str) -> IResult<&str, ExpressionNode> {
 }
 
 fn parse_parens(i: &str) -> IResult<&str, ExpressionNode> {
-    ws!(i, delimited(char('('), parse_expr, char(')')))
+    ws(delimited(char('('), parse_expr, char(')')))(i)
 }
 
 def_unary_fn_parser!(parse_sin, UnaryOperator::Sin, "sin");
@@ -100,7 +99,7 @@ fn parse_args(i: &str) -> IResult<&str, Vec<ExpressionNode>> {
     //let (i, res) = separated_list(tag(","), parse_expr)(i)?;
     //let (i, _) = char(')')(i)?;
     //Ok((i, res))
-    delimited(char('('), separated_list(tag(","), parse_expr), char(')'))(i)
+    delimited(char('('), separated_list0(tag(","), parse_expr), char(')'))(i)
 }
 
 fn parse_log(i: &str) -> IResult<&str, ExpressionNode> {
@@ -139,7 +138,7 @@ fn parse_expr(i: &str) -> IResult<&str, ExpressionNode> {
 fn parse_priority_0(i: &str) -> IResult<&str, ExpressionNode> {
     // TODO: Figure out a way to avoid redefining these if a parser is already
     // defined using the `def_unary_fn_parser!` macro?
-    ws!(i, alt((
+    ws(alt((
         parse_constant,
         parse_parens,
         parse_sin,
@@ -162,13 +161,13 @@ fn parse_priority_0(i: &str) -> IResult<&str, ExpressionNode> {
         parse_e,
         parse_pi,
         parse_variable
-    )))
+    )))(i)
 }
 
 fn parse_priority_1(i: &str) -> IResult<&str, ExpressionNode> {
     let (i, init) = parse_priority_0(i)?;
     fold_many0_once(
-        |i: &str| { ws!(i, pair(tag("^"), parse_priority_0)) },
+        |i: &str| { ws(pair(tag("^"), parse_priority_0))(i) },
         init,
         |acc, (op, val): (&str, ExpressionNode)| {
             let operator = match op.as_bytes()[0] as char {
@@ -188,7 +187,7 @@ fn parse_priority_1(i: &str) -> IResult<&str, ExpressionNode> {
 fn parse_priority_2(i: &str) -> IResult<&str, ExpressionNode> {
     let (i, init) = alt((parse_coefficient, parse_priority_1))(i)?;
     fold_many0_once(
-        |i: &str| { ws!(i, pair(alt((tag("*"), tag("/"))), parse_priority_1)) },
+        |i: &str| { ws(pair(alt((tag("*"), tag("/"))), parse_priority_1))(i) },
         init,
         |acc, (op, val): (&str, ExpressionNode)| {
             let operator = match op.as_bytes()[0] as char {
@@ -226,7 +225,7 @@ fn parse_priority_3(i: &str) -> IResult<&str, ExpressionNode> {
 fn parse_priority_4(i: &str) -> IResult<&str, ExpressionNode> {
     let (i, init) = parse_priority_3(i)?;
     fold_many0_once(
-        |i: &str| { ws!(i, pair(alt((tag("+"), tag("-"))), parse_priority_3)) },
+        |i: &str| { ws(pair(alt((tag("+"), tag("-"))), parse_priority_3))(i) },
         init,
         |acc, (op, val): (&str, ExpressionNode)| {
             let operator = match op.as_bytes()[0] as char {

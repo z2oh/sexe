@@ -1,18 +1,17 @@
 [package]
 name = "sexe"
 version = "0.1.0"
-authors = ["Jeremy Day <jadaytime@gmail.com>"]
+authors = ["Jeremy Day <self@jaday.io>"]
 edition = "2015"
 
 [dependencies]
-sexe_parser = { version = "0.1.0", path = "sexe-parser" }
+sexe_parser = { version = "0.2.0", path = "sexe-parser" }
 sexe_expression = { version = "0.1.0", path = "sexe-expression" }
 termion = "^1.5"
 tui = "^0.5"
 
 [workspace]
 members = [
-	"sexe-expression",
-	"sexe-parser",
+    "sexe-expression",
+    "sexe-parser",
 ]
-

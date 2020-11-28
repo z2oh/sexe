@@ -1,8 +1,7 @@
 [package]
 name = "sexe_parser"
-version = "0.1.0"
+version = "0.2.0"
 
 [dependencies]
 sexe_expression = { version = "0.1.0", path = "../sexe-expression"}
-nom     = "5"
-
+nom = "6"
